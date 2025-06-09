@@ -6,8 +6,8 @@ interface SettingsModalProps {
 }
 
 const SettingsModal = ({ onClose }: SettingsModalProps) => {
-  const [model, setModel] = useState('gpt-4')
-  const [debugMode, setDebugMode] = useState(false)
+  const [model, setModel] = useState('gemini-1.5-pro')
+  const [debugMode, setDebugMode] = useState(true)
   const [apiKey, setApiKey] = useState('')
 
   const handleSave = () => {
@@ -43,25 +43,29 @@ const SettingsModal = ({ onClose }: SettingsModalProps) => {
               onChange={(e) => setModel(e.target.value)}
               className="input"
             >
-              <option value="gpt-4">GPT-4</option>
-              <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-              <option value="claude-3">Claude 3</option>
+              <option value="gemini-1.5-pro">Gemini 1.5 Pro (Active)</option>
               <option value="gemini-pro">Gemini Pro</option>
+              <option value="gpt-4" disabled>GPT-4 (Not configured)</option>
+              <option value="claude-3" disabled>Claude 3 (Not configured)</option>
             </select>
           </div>
           
           {/* API Key */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              API Key
+              Google API Key
             </label>
             <input
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Enter your API key..."
+              placeholder="Configure in backend .env file..."
               className="input"
+              disabled
             />
+            <p className="text-xs text-gray-500 mt-1">
+              API key is configured server-side for security
+            </p>
           </div>
           
           {/* Debug Mode */}

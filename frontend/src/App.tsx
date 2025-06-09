@@ -2,7 +2,8 @@ import { useState } from 'react'
 import ChatInterface from './components/ChatInterface'
 import AgentFlowVisualizer from './components/AgentFlowVisualizer'
 import SettingsModal from './components/SettingsModal'
-import { Settings } from 'lucide-react'
+import DocumentUpload from './components/DocumentUpload'
+import { Settings, Upload } from 'lucide-react'
 
 interface AgentStep {
   node: string
@@ -24,6 +25,7 @@ function App() {
   const [currentSteps, setCurrentSteps] = useState<AgentStep[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showUpload, setShowUpload] = useState(false)
 
   const handleSendMessage = async (content: string) => {
     const userMessage: Message = {
@@ -82,12 +84,22 @@ function App() {
       <div className="absolute top-0 left-0 right-0 z-10 bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">InsightFlow</h1>
-          <button
-            onClick={() => setShowSettings(true)}
-            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <Settings size={20} />
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setShowUpload(true)}
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Upload Document"
+            >
+              <Upload size={20} />
+            </button>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Settings"
+            >
+              <Settings size={20} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -111,6 +123,17 @@ function App() {
       {/* Settings Modal */}
       {showSettings && (
         <SettingsModal onClose={() => setShowSettings(false)} />
+      )}
+
+      {/* Document Upload Modal */}
+      {showUpload && (
+        <DocumentUpload 
+          onUploadSuccess={(filename) => {
+            console.log('Document uploaded:', filename)
+            // Optionally refresh vector store stats or show notification
+          }}
+          onClose={() => setShowUpload(false)} 
+        />
       )}
     </div>
   )

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -47,30 +47,91 @@ async def health_check():
 
 @app.get("/tools")
 async def list_tools():
-    """List available tools"""
-    from tools.mock_tools import ToolRegistry
-    registry = ToolRegistry()
+    """List available real tools"""
+    from tools.real_tools import RealToolRegistry
+    registry = RealToolRegistry()
     return registry.list_tools()
 
 @app.post("/tools/{tool_name}/{method}")
 async def execute_tool(tool_name: str, method: str, params: Dict[str, Any]):
-    """Execute a tool method"""
+    """Execute a real tool method"""
     try:
-        from tools.mock_tools import ToolRegistry
-        registry = ToolRegistry()
+        from tools.real_tools import RealToolRegistry
+        registry = RealToolRegistry()
         result = registry.execute_tool(tool_name, method, **params)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/upload-document")
+async def upload_document(file: UploadFile = File(...)):
+    """Upload a document to the vector store"""
+    try:
+        from retriever.real_vector_store import RealVectorStore
+        from langchain.embeddings import SentenceTransformerEmbeddings
+        
+        # Initialize vector store
+        embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+        vector_store = RealVectorStore(embeddings)
+        
+        # Read file content
+        content = await file.read()
+        
+        # Process based on file type
+        success = False
+        if file.filename.lower().endswith('.pdf'):
+            success = vector_store.add_document_from_pdf(content, file.filename)
+        elif file.filename.lower().endswith(('.txt', '.md')):
+            text_content = content.decode('utf-8')
+            success = vector_store.add_document_from_text(
+                text_content,
+                {"source": file.filename, "type": "uploaded_text"}
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported file type. Please upload PDF or TXT files.")
+        
+        if success:
+            vector_store.save_store()
+            stats = vector_store.get_document_stats()
+            
+            return {
+                "status": "success",
+                "message": f"Document '{file.filename}' uploaded successfully",
+                "filename": file.filename,
+                "file_size": len(content),
+                "vector_store_stats": stats
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Failed to process document")
+            
+    except Exception as e:
+        logger.error(f"Error uploading document: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/vector-store/stats")
+async def get_vector_store_stats():
+    """Get statistics about the vector store"""
+    try:
+        from retriever.real_vector_store import RealVectorStore
+        from langchain.embeddings import SentenceTransformerEmbeddings
+        
+        embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
+        vector_store = RealVectorStore(embeddings)
+        
+        return vector_store.get_document_stats()
+        
+    except Exception as e:
+        logger.error(f"Error getting vector store stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/query", response_model=QueryResponse)
 async def process_query(request: QueryRequest):
-    """Process user query using LangGraph agent"""
+    """Process user query using real LangGraph agent with Gemini"""
     try:
-        from graphs.agent_graph import InsightFlowAgent
+        from graphs.real_agent_graph import RealInsightFlowAgent
         
-        # Initialize agent (in production, this would be cached)
-        agent = InsightFlowAgent()
+        # Initialize real agent (in production, this would be cached)
+        agent = RealInsightFlowAgent()
         
         # Process the query
         result = await agent.process_query(
