@@ -1,11 +1,11 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { X, Save } from 'lucide-react'
 
 interface SettingsModalProps {
   onClose: () => void
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
+const SettingsModal = ({ onClose }: SettingsModalProps) => {
   const [model, setModel] = useState('gpt-4')
   const [debugMode, setDebugMode] = useState(false)
   const [apiKey, setApiKey] = useState('')

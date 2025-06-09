@@ -5,7 +5,7 @@ import {
   Search, 
   Brain, 
   MessageSquare, 
-  Tool,
+  Wrench,
   CheckCircle,
   Circle,
   Clock
@@ -27,7 +27,7 @@ const nodeIcons = {
   Retriever: Search,
   Analyzer: Brain,
   Responder: MessageSquare,
-  ToolCaller: Tool,
+  ToolCaller: Wrench,
 }
 
 const nodeColors = {
@@ -36,7 +36,7 @@ const nodeColors = {
   pending: 'bg-gray-100 text-gray-500 border-gray-200',
 }
 
-const AgentFlowVisualizer: React.FC<AgentFlowVisualizerProps> = ({ steps }) => {
+const AgentFlowVisualizer = ({ steps }: AgentFlowVisualizerProps) => {
   const getNodeStatus = (nodeName: string) => {
     const step = steps.find(s => s.node === nodeName)
     return step?.status || 'pending'

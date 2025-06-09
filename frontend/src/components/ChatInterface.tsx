@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Send, Loader2 } from 'lucide-react'
 
 interface AgentStep {
@@ -22,11 +22,11 @@ interface ChatInterfaceProps {
   isLoading: boolean
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({
+const ChatInterface = ({
   messages,
   onSendMessage,
   isLoading
-}) => {
+}: ChatInterfaceProps) => {
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
