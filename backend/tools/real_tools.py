@@ -3,7 +3,8 @@ import requests
 import os
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
+import pytz
 
 logger = logging.getLogger(__name__)
 
@@ -250,6 +251,65 @@ class RealDocumentAnalysisTool:
         }
 
 
+class RealDateTimeTool:
+    """Real date and time information tool"""
+    
+    def get_current_datetime(self, timezone_name: str = "UTC") -> Dict[str, Any]:
+        """Get current date and time in specified timezone"""
+        try:
+            if timezone_name.upper() == "UTC":
+                tz = timezone.utc
+                now = datetime.now(tz)
+            else:
+                try:
+                    tz = pytz.timezone(timezone_name)
+                    now = datetime.now(tz)
+                except pytz.exceptions.UnknownTimeZoneError:
+                    # Default to UTC if timezone is unknown
+                    tz = timezone.utc
+                    now = datetime.now(tz)
+                    timezone_name = "UTC (unknown timezone provided)"
+            
+            return {
+                "status": "success",
+                "current_datetime": {
+                    "date": now.strftime("%Y-%m-%d"),
+                    "time": now.strftime("%H:%M:%S"),
+                    "timezone": timezone_name,
+                    "day_of_week": now.strftime("%A"),
+                    "month": now.strftime("%B"),
+                    "year": now.year,
+                    "formatted_date": now.strftime("%B %d, %Y"),
+                    "formatted_datetime": now.strftime("%A, %B %d, %Y at %H:%M:%S %Z"),
+                    "iso_format": now.isoformat(),
+                    "unix_timestamp": int(now.timestamp())
+                }
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Error getting current datetime: {str(e)}"
+            }
+    
+    def get_today_date(self) -> Dict[str, Any]:
+        """Get today's date in a simple format"""
+        try:
+            now = datetime.now()
+            return {
+                "status": "success", 
+                "today": {
+                    "date": now.strftime("%Y-%m-%d"),
+                    "formatted": now.strftime("%B %d, %Y"),
+                    "day_of_week": now.strftime("%A")
+                }
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": f"Error getting today's date: {str(e)}"
+            }
+
+
 class RealToolRegistry:
     """Registry for all real tools"""
     
@@ -258,7 +318,8 @@ class RealToolRegistry:
             "web_search": RealWebSearchTool(),
             "calculator": RealCalculatorTool(),
             "email": RealEmailTool(),
-            "document_analysis": RealDocumentAnalysisTool()
+            "document_analysis": RealDocumentAnalysisTool(),
+            "datetime": RealDateTimeTool()
         }
     
     def get_tool(self, tool_name: str):
@@ -290,6 +351,12 @@ class RealToolRegistry:
                 "description": "Analyze text documents for various metrics",
                 "methods": ["analyze_text"],
                 "parameters": {"text": "string"},
+                "requires_api": False
+            },
+            "datetime": {
+                "description": "Get current date and time information",
+                "methods": ["get_current_datetime", "get_today_date"],
+                "parameters": {"timezone_name": "string (optional, default UTC)"},
                 "requires_api": False
             }
         }

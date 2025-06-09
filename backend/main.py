@@ -4,15 +4,32 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import uvicorn
 import logging
+import asyncio
+from contextlib import asynccontextmanager
 
-app = FastAPI(title="InsightFlow Backend", version="1.0.0")
+# Global agent instance
+agent_instance = None
 
-# CORS middleware
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Initialize the agent
+    global agent_instance
+    logger.info("Initializing optimized agent...")
+    from graphs.fast_agent_graph import get_fast_agent
+    agent_instance = get_fast_agent()
+    logger.info("Agent initialized successfully")
+    yield
+    # Shutdown: cleanup if needed
+    logger.info("Shutting down...")
+
+app = FastAPI(title="InsightFlow Backend - Optimized", version="2.0.0", lifespan=lifespan)
+
+# CORS middleware - allowing all origins for public API access
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=["*"],  # Allow all origins for public API access
+    allow_credentials=False,  # Set to False when allowing all origins
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -39,7 +56,14 @@ class QueryResponse(BaseModel):
 
 @app.get("/")
 async def root():
-    return {"message": "InsightFlow Backend is running"}
+    return {
+        "message": "InsightFlow Backend - Optimized", 
+        "version": "2.0.0",
+        "status": "running",
+        "description": "High-performance AI agent with memory management and tool integration",
+        "documentation": "/docs",
+        "health_check": "/health"
+    }
 
 @app.get("/health")
 async def health_check():
@@ -126,15 +150,15 @@ async def get_vector_store_stats():
 
 @app.post("/query", response_model=QueryResponse)
 async def process_query(request: QueryRequest):
-    """Process user query using real LangGraph agent with Gemini"""
+    """Process user query using optimized LangGraph agent with memory and caching"""
+    global agent_instance
+    
+    if agent_instance is None:
+        raise HTTPException(status_code=503, detail="Agent not initialized")
+    
     try:
-        from graphs.real_agent_graph import RealInsightFlowAgent
-        
-        # Initialize real agent (in production, this would be cached)
-        agent = RealInsightFlowAgent()
-        
-        # Process the query
-        result = await agent.process_query(
+        # Process the query using cached agent
+        result = await agent_instance.process_query(
             question=request.question,
             conversation_id=request.conversation_id or "default"
         )
@@ -159,6 +183,50 @@ async def process_query(request: QueryRequest):
         
     except Exception as e:
         logger.error(f"Error processing query: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/memory/stats")
+async def get_memory_stats():
+    """Get memory and performance statistics"""
+    global agent_instance
+    
+    if agent_instance is None:
+        raise HTTPException(status_code=503, detail="Agent not initialized")
+    
+    try:
+        return {
+            "conversation_cache_size": len(agent_instance.conversation_memory),
+            "cached_conversations": list(agent_instance.conversation_memory.keys()),
+            "memory_store_initialized": hasattr(agent_instance, 'memory_store'),
+            "performance_optimizations": [
+                "Singleton pattern",
+                "Async processing", 
+                "Thread pool execution",
+                "Conversation caching",
+                "LangMem integration"
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Error getting memory stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/memory/cache")
+async def clear_memory_cache():
+    """Clear conversation cache"""
+    global agent_instance
+    
+    if agent_instance is None:
+        raise HTTPException(status_code=503, detail="Agent not initialized")
+    
+    try:
+        cache_size = len(agent_instance.conversation_memory)
+        agent_instance.conversation_memory.clear()
+        return {
+            "status": "success",
+            "message": f"Cleared {cache_size} cached conversations"
+        }
+    except Exception as e:
+        logger.error(f"Error clearing cache: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
