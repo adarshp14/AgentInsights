@@ -14,40 +14,25 @@ from database.database import get_db
 from database.models import Document, User
 from services.auth_service import AuthService
 from schemas.auth import UserProfile
+from auth.clerk_auth import get_current_user_compatible
 from retriever.multi_tenant_vector_store import MultiTenantVectorStore, get_vector_store
 from langchain.schema import Document as LangchainDocument
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 router = APIRouter(prefix="/documents", tags=["Document Management"])
-security = HTTPBearer()
 
-def get_auth_service(db: Session = Depends(get_db)) -> AuthService:
-    """Dependency to get auth service"""
-    return AuthService(db)
-
-def get_current_user_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-) -> str:
-    """Extract token from Authorization header"""
-    return credentials.credentials
-
+# Use Clerk authentication or fallback to custom auth
 def get_current_user(
-    token: str = Depends(get_current_user_token),
-    auth_service: AuthService = Depends(get_auth_service)
-) -> User:
-    """Get current authenticated user from token"""
-    user = auth_service.get_user_by_token(token)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token"
-        )
-    return user
+    # Try Clerk auth first, fallback to custom auth
+    user_info: Dict[str, Any] = Depends(get_current_user_compatible)
+) -> Dict[str, Any]:
+    """Get current authenticated user (Clerk or custom auth)"""
+    return user_info
 
 @router.post("/upload")
 async def upload_document(
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(get_current_user),
     db: Session = Depends(get_db),
     vector_store: MultiTenantVectorStore = Depends(get_vector_store)
 ):
@@ -210,13 +195,13 @@ async def upload_document(
 
 @router.get("/list")
 async def list_documents(
-    current_user: User = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List all documents in organization"""
     try:
         documents = db.query(Document).filter(
-            Document.org_id == current_user.org_id
+            Document.org_id == current_user["org_id"]
         ).order_by(Document.upload_date.desc()).all()
         
         doc_list = []
