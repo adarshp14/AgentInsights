@@ -25,6 +25,7 @@ from auth.auth_utils import (
 # Import multi-tenant components
 from database.database import create_tables
 from api.organizations import router as org_router
+from api.analytics import router as analytics_router
 
 # Global agent instances
 agent_instance = None
@@ -90,6 +91,9 @@ app.include_router(auth_router)
 # Import and include documents router
 from api.documents import router as docs_router
 app.include_router(docs_router)
+
+# Include analytics router
+app.include_router(analytics_router)
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
