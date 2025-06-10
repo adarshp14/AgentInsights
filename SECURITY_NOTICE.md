@@ -1,36 +1,48 @@
-# SECURITY NOTICE - IMMEDIATE ACTION REQUIRED
+# SECURITY NOTICE - CRITICAL ACTION REQUIRED
 
-## API Key Compromise
+## Multiple API Key Compromises
 
 **Date:** June 10, 2025  
-**Severity:** HIGH  
+**Severity:** CRITICAL  
 
-### Issue
-A Google API key was accidentally committed to the git repository and exposed in the commit history:
-- **Exposed Key:** `AIzaSyCFms8dpbNDruOOg8Oasy3_wc_D3AqNUbM`
-- **Commit:** `61ae143816f3b797d73dcea3aa99307eaff2147f` and `1a67c767dedcfd9351515f575cde8ea049ce03a9`
+### Issues
+1. **Google API Key Exposed** (Commit History):
+   - **Exposed Key:** `AIzaSyCFms8dpbNDruOOg8Oasy3_wc_D3AqNUbM`
+   - **Commits:** `61ae143816f3b797d73dcea3aa99307eaff2147f` and `1a67c767dedcfd9351515f575cde8ea049ce03a9`
 
-### Immediate Actions Taken
-1. ✅ Removed API key from `.env` file
-2. ✅ Removed `.env` file from git tracking
-3. ✅ Created `.env.example` template
-4. ✅ Added security notice
+2. **Clerk API Keys Exposed** (Chat/Public):
+   - **Publishable Key:** `pk_test_ZGVzdGluZWQtYmx1ZWdpbGwtMTEuY2xlcmsuYWNjb3VudHMuZGV2JA`
+   - **Secret Key:** `sk_test_c8z2Ar5Lx46gXhg5Y9XuNerua79Do4LXjPWiGcc7zk`
 
-### Required Actions
-1. **IMMEDIATELY** regenerate the Google API key at https://makersuite.google.com/app/apikey
-2. Delete the compromised key `AIzaSyCFms8dpbNDruOOg8Oasy3_wc_D3AqNUbM` 
-3. Update your local `.env` file with the new API key
-4. Review any billing/usage associated with the compromised key
-5. Consider rotating any other API keys that may have been exposed
+### IMMEDIATE ACTIONS REQUIRED
 
-### Prevention Measures
-- `.env` files are now properly gitignored
-- Use `.env.example` for environment variable templates
-- Never commit real API keys, passwords, or secrets
-- Use environment variables for all sensitive configuration
+**Google API Key:**
+1. ✅ Removed from `.env` file
+2. ✅ Removed from git tracking
+3. 🚨 **REGENERATE IMMEDIATELY** at https://makersuite.google.com/app/apikey
+4. 🚨 **DELETE** the compromised key `AIzaSyCFms8dpbNDruOOg8Oasy3_wc_D3AqNUbM`
 
-### Git History
-⚠️ **WARNING:** The compromised API key remains in the git history. Consider using tools like `git filter-branch` or `BFG Repo-Cleaner` to remove it from history if this repository will be made public.
+**Clerk API Keys:**
+1. 🚨 **LOGIN** to https://dashboard.clerk.com/
+2. 🚨 **REGENERATE** both publishable and secret keys immediately
+3. 🚨 **DELETE** the exposed keys:
+   - `pk_test_ZGVzdGluZWQtYmx1ZWdpbGwtMTEuY2xlcmsuYWNjb3VudHMuZGV2JA`
+   - `sk_test_c8z2Ar5Lx46gXhg5Y9XuNerua79Do4LXjPWiGcc7zk`
+4. 🚨 **UPDATE** your local `.env` files with new keys
+5. 🚨 **REVIEW** all activity and access logs in Clerk dashboard
+
+### Security Measures Implemented
+- All `.env` files properly gitignored
+- Environment variable templates created
+- Security notices added to repository
+
+### Prevention Going Forward
+- **NEVER** paste API keys in chat, issues, or public communications
+- **ALWAYS** use environment variables for secrets
+- **ROTATE** keys regularly as a security practice
+- **MONITOR** usage and access logs for anomalies
+
+⚠️ **CRITICAL:** These keys were exposed in plain text and must be rotated immediately to prevent unauthorized access to your Google and Clerk services.
 
 ---
-**This file can be deleted after the security issue has been resolved.**
+**This file should be deleted after all security issues have been resolved.**
