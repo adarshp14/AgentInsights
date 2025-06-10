@@ -70,21 +70,33 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onUploadComplete
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch('/api/documents/upload', {
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      throw new Error('Authentication required');
+    }
+
+    const response = await fetch('http://localhost:8001/documents/upload', {
       method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
       body: formData
     });
 
     const result = await response.json();
     
+    if (!response.ok) {
+      throw new Error(result.detail || 'Upload failed');
+    }
+    
     return {
       document_id: result.document_id || '',
-      filename: result.filename,
-      file_type: result.file_type,
-      file_size: result.file_size,
+      filename: result.filename || file.name,
+      file_type: result.file_type || file.name.split('.').pop() || '',
+      file_size: result.file_size || file.size,
       chunks_created: result.chunks_created || 0,
-      status: result.status,
-      error: result.error
+      status: result.status === 'success' ? 'success' : 'error',
+      error: result.message || result.error
     };
   };
 

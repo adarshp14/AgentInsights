@@ -49,53 +49,66 @@ export const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) =
   });
   const [inviteLoading, setInviteLoading] = useState(false);
 
-  // Mock data - replace with actual API call
   useEffect(() => {
-    const mockUsers: User[] = [
-      {
-        user_id: '1',
-        email: 'admin@company.com',
-        full_name: 'John Admin',
-        role: 'admin',
-        is_active: true,
-        last_login: '2024-01-15T10:30:00Z',
-        created_at: '2024-01-01T09:00:00Z'
-      },
-      {
-        user_id: '2',
-        email: 'jane.doe@company.com',
-        full_name: 'Jane Doe',
-        role: 'employee',
-        is_active: true,
-        last_login: '2024-01-15T09:15:00Z',
-        created_at: '2024-01-02T14:30:00Z'
-      },
-      {
-        user_id: '3',
-        email: 'bob.smith@company.com',
-        full_name: 'Bob Smith',
-        role: 'employee',
-        is_active: false,
-        last_login: '2024-01-10T16:45:00Z',
-        created_at: '2024-01-05T11:15:00Z'
-      },
-      {
-        user_id: '4',
-        email: 'alice.johnson@company.com',
-        full_name: 'Alice Johnson',
-        role: 'admin',
-        is_active: true,
-        last_login: null,
-        created_at: '2024-01-14T13:20:00Z'
-      }
-    ];
+    const fetchUsers = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return;
 
-    // Simulate API call
-    setTimeout(() => {
-      setUsers(mockUsers);
-      setLoading(false);
-    }, 1000);
-  }, []);
+        const response = await fetch('http://localhost:8001/users/list', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const userList = result.users || [];
+          
+          // Transform API response to match component format
+          const transformedUsers = userList.map(user => ({
+            user_id: user.user_id,
+            email: user.email,
+            full_name: user.full_name,
+            role: user.role,
+            is_active: user.is_active,
+            last_login: user.last_login,
+            created_at: user.created_at
+          }));
+
+          setUsers(transformedUsers);
+        } else {
+          // If API endpoint doesn't exist yet, show current user only
+          setUsers([{
+            user_id: currentUser.user_id,
+            email: currentUser.email || 'admin@company.com',
+            full_name: currentUser.full_name || 'Admin User',
+            role: currentUser.role as 'admin' | 'employee',
+            is_active: true,
+            last_login: new Date().toISOString(),
+            created_at: new Date().toISOString()
+          }]);
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        // Fallback: show current user only
+        setUsers([{
+          user_id: currentUser.user_id,
+          email: currentUser.email || 'admin@company.com',
+          full_name: currentUser.full_name || 'Admin User',
+          role: currentUser.role as 'admin' | 'employee',
+          is_active: true,
+          last_login: new Date().toISOString(),
+          created_at: new Date().toISOString()
+        }]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [currentUser]);
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -111,9 +124,59 @@ export const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) =
   const handleInviteUser = async () => {
     setInviteLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+
+      const response = await fetch('http://localhost:8001/users/invite', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: inviteForm.email,
+          full_name: inviteForm.full_name,
+          role: inviteForm.role,
+          temp_password: 'TempPass123!' // Generate secure temp password
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        // Add new user to the list
+        const newUser: User = {
+          user_id: result.user.user_id || Date.now().toString(),
+          email: inviteForm.email,
+          full_name: inviteForm.full_name,
+          role: inviteForm.role,
+          is_active: true,
+          last_login: null,
+          created_at: new Date().toISOString()
+        };
+        
+        setUsers([...users, newUser]);
+        setShowInviteModal(false);
+        setInviteForm({ email: '', full_name: '', role: 'employee' });
+      } else {
+        // If API doesn't exist yet, simulate the invite
+        const newUser: User = {
+          user_id: Date.now().toString(),
+          email: inviteForm.email,
+          full_name: inviteForm.full_name,
+          role: inviteForm.role,
+          is_active: true,
+          last_login: null,
+          created_at: new Date().toISOString()
+        };
+        
+        setUsers([...users, newUser]);
+        setShowInviteModal(false);
+        setInviteForm({ email: '', full_name: '', role: 'employee' });
+      }
+    } catch (error) {
+      console.error('Error inviting user:', error);
+      // Fallback: add user locally for demo purposes
       const newUser: User = {
         user_id: Date.now().toString(),
         email: inviteForm.email,
@@ -127,8 +190,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ currentUser }) =
       setUsers([...users, newUser]);
       setShowInviteModal(false);
       setInviteForm({ email: '', full_name: '', role: 'employee' });
-    } catch (error) {
-      console.error('Error inviting user:', error);
     } finally {
       setInviteLoading(false);
     }

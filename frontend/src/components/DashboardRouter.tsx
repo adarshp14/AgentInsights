@@ -101,43 +101,104 @@ export const DashboardRouter: React.FC<DashboardRouterProps> = ({ currentUser, o
 
 // Admin Overview Dashboard
 const AdminOverview: React.FC<{ currentUser: any }> = ({ currentUser }) => {
-  const metrics = [
+  const [metrics, setMetrics] = useState([
     {
       title: 'Total Users',
-      value: '24',
-      change: '+2 this week',
+      value: '0',
+      change: 'Loading...',
       icon: Users,
       color: 'bg-blue-500'
     },
     {
       title: 'Documents',
-      value: '156',
-      change: '+12 this month',
+      value: '0',
+      change: 'Loading...',
       icon: FileText,
       color: 'bg-green-500'
     },
     {
       title: 'Queries Today',
-      value: '342',
-      change: '+18% from yesterday',
+      value: '0',
+      change: 'Loading...',
       icon: MessageSquare,
       color: 'bg-purple-500'
     },
     {
       title: 'Response Time',
-      value: '1.2s',
-      change: '-0.3s improvement',
+      value: '-',
+      change: 'Loading...',
       icon: Clock,
       color: 'bg-orange-500'
     }
-  ];
+  ]);
 
-  const recentActivity = [
-    { action: 'New user registered', user: 'Alice Johnson', time: '2 minutes ago' },
-    { action: 'Document uploaded', user: 'Bob Smith', time: '15 minutes ago' },
-    { action: 'User promoted to admin', user: 'Carol Davis', time: '1 hour ago' },
-    { action: 'System backup completed', user: 'System', time: '2 hours ago' }
-  ];
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchOverviewData = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return;
+
+        // Fetch document stats
+        const docStatsResponse = await fetch('http://localhost:8001/documents/stats', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (docStatsResponse.ok) {
+          const docStats = await docStatsResponse.json();
+          
+          setMetrics([
+            {
+              title: 'Total Users',
+              value: '1+',
+              change: 'Multi-tenant active',
+              icon: Users,
+              color: 'bg-blue-500'
+            },
+            {
+              title: 'Documents',
+              value: docStats.total_documents.toString(),
+              change: `${docStats.completed_documents} processed`,
+              icon: FileText,
+              color: 'bg-green-500'
+            },
+            {
+              title: 'Storage Used',
+              value: `${docStats.total_size_mb} MB`,
+              change: `${docStats.total_chunks} chunks`,
+              icon: MessageSquare,
+              color: 'bg-purple-500'
+            },
+            {
+              title: 'Processing',
+              value: docStats.processing_documents.toString(),
+              change: 'Documents pending',
+              icon: Clock,
+              color: 'bg-orange-500'
+            }
+          ]);
+
+          // Mock recent activity until we have real activity logs
+          setRecentActivity([
+            { action: 'System initialized', user: currentUser.full_name, time: 'Recently' },
+            { action: 'Documents processed', user: 'AI System', time: 'Active' },
+            { action: 'Vector store ready', user: 'System', time: 'Online' }
+          ]);
+        }
+      } catch (error) {
+        console.error('Error fetching overview data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOverviewData();
+  }, [currentUser]);
 
   return (
     <div className="space-y-6">
@@ -239,66 +300,127 @@ const DocumentManagement: React.FC<{ currentUser: any }> = ({ currentUser }) => 
   });
   const [showUploadModal, setShowUploadModal] = useState(false);
 
-  // Mock data - replace with API call to get organization documents
+  // Fetch real documents from API
   useEffect(() => {
-    const mockDocuments = [
-      {
-        doc_id: '1',
-        filename: 'Company_Handbook.pdf',
-        file_size: 2.5,
-        upload_date: '2024-01-15T10:30:00Z',
-        status: 'processed',
-        chunks_count: 45,
-        uploaded_by: 'John Admin'
-      },
-      {
-        doc_id: '2', 
-        filename: 'Product_Specifications.docx',
-        file_size: 1.8,
-        upload_date: '2024-01-14T15:20:00Z',
-        status: 'processing',
-        chunks_count: 0,
-        uploaded_by: 'Jane Doe'
-      },
-      {
-        doc_id: '3',
-        filename: 'Meeting_Notes.txt',
-        file_size: 0.3,
-        upload_date: '2024-01-13T09:15:00Z',
-        status: 'error',
-        error_message: 'File format not supported',
-        chunks_count: 0,
-        uploaded_by: 'Bob Smith'
-      }
-    ];
+    const fetchDocuments = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return;
 
-    setTimeout(() => {
-      setDocuments(mockDocuments);
-      setUploadStats({
-        totalDocuments: mockDocuments.length,
-        totalSizeMB: mockDocuments.reduce((sum, doc) => sum + doc.file_size, 0),
-        processingCount: mockDocuments.filter(d => d.status === 'processing').length,
-        successCount: mockDocuments.filter(d => d.status === 'processed').length,
-        errorCount: mockDocuments.filter(d => d.status === 'error').length
-      });
-      setLoading(false);
-    }, 1000);
+        const response = await fetch('http://localhost:8001/documents/list', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const docs = result.documents || [];
+          
+          // Transform API response to match component format
+          const transformedDocs = docs.map(doc => ({
+            doc_id: doc.document_id,
+            filename: doc.filename,
+            file_size: doc.file_size / (1024 * 1024), // Convert bytes to MB
+            upload_date: doc.upload_date,
+            status: doc.processing_status === 'completed' ? 'processed' : doc.processing_status,
+            chunks_count: doc.chunks_created || 0,
+            uploaded_by: doc.uploader || 'Unknown'
+          }));
+
+          setDocuments(transformedDocs);
+          setUploadStats({
+            totalDocuments: transformedDocs.length,
+            totalSizeMB: transformedDocs.reduce((sum, doc) => sum + doc.file_size, 0),
+            processingCount: transformedDocs.filter(d => d.status === 'processing').length,
+            successCount: transformedDocs.filter(d => d.status === 'processed').length,
+            errorCount: transformedDocs.filter(d => d.status === 'failed').length
+          });
+        } else {
+          console.error('Failed to fetch documents:', response.statusText);
+        }
+      } catch (error) {
+        console.error('Error fetching documents:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDocuments();
   }, [currentUser.org_id]);
 
   const handleUploadComplete = (newDoc) => {
-    setDocuments(prev => [newDoc, ...prev]);
-    setUploadStats(prev => ({
-      ...prev,
-      totalDocuments: prev.totalDocuments + 1,
-      totalSizeMB: prev.totalSizeMB + (newDoc.file_size || 0),
-      processingCount: prev.processingCount + 1
-    }));
+    // Refresh the entire document list to get real data from backend
+    const fetchDocuments = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return;
+
+        const response = await fetch('http://localhost:8001/documents/list', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const docs = result.documents || [];
+          
+          const transformedDocs = docs.map(doc => ({
+            doc_id: doc.document_id,
+            filename: doc.filename,
+            file_size: doc.file_size / (1024 * 1024),
+            upload_date: doc.upload_date,
+            status: doc.processing_status === 'completed' ? 'processed' : doc.processing_status,
+            chunks_count: doc.chunks_created || 0,
+            uploaded_by: doc.uploader || 'Unknown'
+          }));
+
+          setDocuments(transformedDocs);
+          setUploadStats({
+            totalDocuments: transformedDocs.length,
+            totalSizeMB: transformedDocs.reduce((sum, doc) => sum + doc.file_size, 0),
+            processingCount: transformedDocs.filter(d => d.status === 'processing').length,
+            successCount: transformedDocs.filter(d => d.status === 'processed').length,
+            errorCount: transformedDocs.filter(d => d.status === 'failed').length
+          });
+        }
+      } catch (error) {
+        console.error('Error refreshing documents:', error);
+      }
+    };
+
+    fetchDocuments();
   };
 
   const handleDeleteDocument = async (docId) => {
-    if (confirm('Are you sure you want to delete this document?')) {
-      // TODO: Call delete API
-      setDocuments(prev => prev.filter(doc => doc.doc_id !== docId));
+    if (!confirm('Are you sure you want to delete this document?')) return;
+    
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+
+      const response = await fetch(`http://localhost:8001/documents/${docId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        setDocuments(prev => prev.filter(doc => doc.doc_id !== docId));
+        setUploadStats(prev => ({
+          ...prev,
+          totalDocuments: prev.totalDocuments - 1
+        }));
+      } else {
+        console.error('Failed to delete document:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error deleting document:', error);
     }
   };
 
