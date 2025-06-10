@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { UserButton, OrganizationSwitcher } from '@clerk/clerk-react';
 import {
   Users,
   FileText,
@@ -211,17 +212,21 @@ export const AdminDashboardLayout: React.FC<AdminDashboardLayoutProps> = ({
           </div>
         </div>
 
-        {/* Logout */}
+        {/* User Profile */}
         <div className="p-4 border-t border-gray-200">
-          <button
-            onClick={onLogout}
-            className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            <span>Sign Out</span>
-          </button>
+          <div className="flex items-center justify-center">
+            <UserButton 
+              appearance={{
+                elements: {
+                  avatarBox: "w-8 h-8",
+                  userButtonTrigger: "focus:shadow-none"
+                }
+              }}
+              showName={true}
+              userProfileMode="navigation"
+              userProfileUrl="/user-profile"
+            />
+          </div>
         </div>
       </div>
 
@@ -269,14 +274,29 @@ export const AdminDashboardLayout: React.FC<AdminDashboardLayoutProps> = ({
                 )}
               </button>
 
-              {/* Organization Info */}
-              <div className="hidden md:flex items-center space-x-3 px-3 py-2 bg-gray-50 rounded-lg">
-                <Building className="w-4 h-4 text-gray-500" />
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{currentUser.org_name}</p>
-                  <p className="text-xs text-gray-500">Administrator</p>
-                </div>
+              {/* Organization Switcher */}
+              <div className="hidden md:block">
+                <OrganizationSwitcher 
+                  appearance={{
+                    elements: {
+                      organizationSwitcherTrigger: "bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg px-3 py-2",
+                      organizationSwitcherTriggerIcon: "text-gray-500"
+                    }
+                  }}
+                  createOrganizationMode="navigation"
+                  organizationProfileMode="navigation"
+                />
               </div>
+
+              {/* User Button */}
+              <UserButton 
+                appearance={{
+                  elements: {
+                    avatarBox: "w-8 h-8",
+                    userButtonTrigger: "focus:shadow-none"
+                  }
+                }}
+              />
             </div>
           </div>
         </header>

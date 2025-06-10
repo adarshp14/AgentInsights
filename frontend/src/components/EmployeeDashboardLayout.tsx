@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { UserButton, OrganizationSwitcher } from '@clerk/clerk-react';
 import {
   MessageSquare,
   FileText,
@@ -218,13 +219,22 @@ export const EmployeeDashboardLayout: React.FC<EmployeeDashboardLayoutProps> = (
           </div>
         </div>
 
-        {/* Logout */}
+        {/* User Profile */}
         <div className="p-4 border-t border-gray-200">
-          <button
-            onClick={onLogout}
-            className="w-full flex items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="flex items-center justify-center">
+            <UserButton 
+              appearance={{
+                elements: {
+                  avatarBox: "w-8 h-8",
+                  userButtonTrigger: "focus:shadow-none"
+                }
+              }}
+              showName={true}
+              userProfileMode="navigation"
+              userProfileUrl="/user-profile"
+            />
+          </div>
+        </div>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013 3v1" />
             </svg>
             <span>Sign Out</span>
