@@ -1,277 +1,217 @@
-# InsightFlow Architecture
+# InsightFlow Multi-Tenant Architecture
 
 ## System Overview
 
-InsightFlow is a high-performance AI agent application built with modern technologies for intelligent query processing, document retrieval, and conversation memory management.
+InsightFlow is a production-ready multi-tenant SaaS platform for AI-powered knowledge management. Built with modern technologies, it provides secure organization-isolated document processing, intelligent query handling, and comprehensive user management.
+
+## Architecture Diagram
 
 ```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           MULTI-TENANT SAAS PLATFORM                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Frontend      │    │    Backend      │    │   External      │
-│   (React)       │    │   (FastAPI)     │    │   Services      │
+│   (React)       │◄──►│   (FastAPI)     │◄──►│   Services      │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
-│                      │                      │
-│ ┌─────────────────┐  │ ┌─────────────────┐  │ ┌─────────────────┐
-│ │ React Components│  │ │ FastAPI Router  │  │ │ Google Gemini   │
-│ │ - Dashboard     │  │ │ - /query        │  │ │ 2.0 Flash Exp   │
-│ │ - Chat Interface│  │ │ - /upload       │  │ └─────────────────┘
-│ │ - Analytics     │  │ │ - /memory       │  │
-│ └─────────────────┘  │ └─────────────────┘  │ ┌─────────────────┐
-│                      │         │            │ │ External APIs   │
-│ ┌─────────────────┐  │ ┌─────────────────┐  │ │ - Weather       │
-│ │ TypeScript      │  │ │ LangGraph Agent │  │ │ - Web Search    │
-│ │ - Type Safety   │  │ │ - Query Router  │  │ │ - News          │
-│ │ - State Mgmt    │  │ │ - Memory Mgmt   │  │ └─────────────────┘
-│ │ - API Client    │  │ │ - Tool Router   │  │
-│ └─────────────────┘  │ └─────────────────┘  │
-│                      │         │            │
-│ ┌─────────────────┐  │ ┌─────────────────┐  │
-│ │ Tailwind CSS    │  │ │ Vector Store    │  │
-│ │ - Responsive    │  │ │ - FAISS Index   │  │
-│ │ - Modern UI     │  │ │ - Embeddings    │  │ 
-│ │ - Animations    │  │ │ - Documents     │  │
-│ └─────────────────┘  │ └─────────────────┘  │
-                       │         │            │
-                       │ ┌─────────────────┐  │
-                       │ │ Tool Registry   │  │
-                       │ │ - Calculator    │  │
-                       │ │ - DateTime      │  │
-                       │ │ - Web Search    │  │
-                       │ └─────────────────┘  │
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              FRONTEND LAYER                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐               │
+│ │ Authentication  │ │ Dashboard       │ │ Admin Panel     │               │
+│ │ - Login Flow    │ │ - Chat Interface│ │ - User Mgmt     │               │
+│ │ - Onboarding    │ │ - Document View │ │ - Org Settings  │               │
+│ │ - Org Selection │ │ - Analytics     │ │ - Role Control  │               │
+│ └─────────────────┘ └─────────────────┘ └─────────────────┘               │
+│                                                                             │
+│ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐               │
+│ │ UI Components   │ │ State Mgmt      │ │ Security        │               │
+│ │ - SaaS Design   │ │ - JWT Tokens    │ │ - Token Storage │               │
+│ │ - Responsive    │ │ - Org Context   │ │ - Auto Logout   │               │
+│ │ - Modern UX     │ │ - User Profile  │ │ - Route Guards  │               │
+│ └─────────────────┘ └─────────────────┘ └─────────────────┘               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                               BACKEND LAYER                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐               │
+│ │ API Routes      │ │ Authentication  │ │ Authorization   │               │
+│ │ - /auth/*       │ │ - JWT Tokens    │ │ - Role-based    │               │
+│ │ - /orgs/*       │ │ - Password Hash │ │ - Org Isolation │               │
+│ │ - /docs/*       │ │ - Session Mgmt  │ │ - Admin/Employee│               │
+│ │ - /query/*      │ │ - Multi-tenant  │ │ - Secure Access │               │
+│ └─────────────────┘ └─────────────────┘ └─────────────────┘               │
+│                                                                             │
+│ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐               │
+│ │ Services Layer  │ │ AI Agents       │ │ Vector Store    │               │
+│ │ - OrgService    │ │ - Gemini 2.0    │ │ - ChromaDB      │               │
+│ │ - AuthService   │ │ - LangGraph     │ │ - Org Isolation │               │
+│ │ - DocumentService│ │ - RAG Pipeline  │ │ - Embeddings    │               │
+│ │ - UserService   │ │ - Tool Router   │ │ - Search Index  │               │
+│ └─────────────────┘ └─────────────────┘ └─────────────────┘               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              DATABASE LAYER                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐               │
+│ │ Organizations   │ │ Users           │ │ Documents       │               │
+│ │ - org_id (PK)   │ │ - user_id (PK)  │ │ - doc_id (PK)   │               │
+│ │ - org_name      │ │ - org_id (FK)   │ │ - org_id (FK)   │               │
+│ │ - domain        │ │ - email         │ │ - filename      │               │
+│ │ - plan_type     │ │ - password_hash │ │ - file_path     │               │
+│ │ - settings      │ │ - role          │ │ - uploaded_by   │               │
+│ └─────────────────┘ └─────────────────┘ └─────────────────┘               │
+│                                                                             │
+│ ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐               │
+│ │ Embeddings      │ │ Sessions        │ │ Search Logs     │               │
+│ │ - embed_id (PK) │ │ - session_id    │ │ - log_id (PK)   │               │
+│ │ - doc_id (FK)   │ │ - user_id (FK)  │ │ - user_id (FK)  │               │
+│ │ - org_id (FK)   │ │ - org_id (FK)   │ │ - org_id (FK)   │               │
+│ │ - chunk_text    │ │ - session_data  │ │ - query_text    │               │
+│ │ - vector        │ │ - created_at    │ │ - timestamp     │               │
+│ └─────────────────┘ └─────────────────┘ └─────────────────┘               │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
+
+## Multi-Tenant Architecture
+
+### Organization Isolation
+- **Complete Data Separation**: Each organization has isolated data at database and vector store levels
+- **Secure Authentication**: JWT tokens contain org_id claims for context-aware access control
+- **Role-Based Access**: Admin and employee roles with different permissions within organizations
+- **Custom Domains**: Optional domain-based organization detection
+
+### Security Model
+- **JWT Authentication**: Stateless tokens with organization context
+- **Password Security**: bcrypt hashing with secure salt rounds
+- **API Authorization**: Every endpoint validates org membership and role permissions
+- **Vector Store Isolation**: Separate ChromaDB collections per organization (org_{hash}_docs)
+
+### Database Schema
+- **Foreign Key Relationships**: All entities linked to org_id for data integrity
+- **Audit Trail**: Created/updated timestamps on all records
+- **Soft Deletes**: Maintain data integrity while allowing logical deletion
+- **Indexing**: Optimized queries with proper database indexes
 
 ## Technology Stack
 
 ### Frontend
-- **React 18.2** - Modern component-based UI framework
-- **TypeScript** - Type-safe JavaScript development
-- **Tailwind CSS** - Utility-first CSS framework
-- **Vite** - Fast build tool and development server
-- **Axios** - HTTP client for API communication
+- **React 18** with TypeScript for type safety
+- **Tailwind CSS** for modern, responsive design
+- **Vite** for fast development and optimized builds
+- **SaaS-inspired UI** with professional authentication flows
 
 ### Backend
-- **FastAPI** - High-performance Python web framework
-- **Python 3.9+** - Core programming language
-- **LangGraph** - Agent orchestration and workflow management
-- **LangChain** - LLM integration and tool management
-- **Pydantic** - Data validation and serialization
+- **FastAPI** with async support for high performance
+- **SQLAlchemy** ORM with Alembic migrations
+- **Pydantic** for data validation and serialization
+- **JWT** for stateless authentication
+- **bcrypt** for secure password hashing
 
 ### AI & ML
-- **Google Gemini 2.0 Flash Experimental** - Primary language model
-- **SentenceTransformers** - Text embeddings (all-MiniLM-L6-v2)
-- **FAISS** - Vector similarity search and indexing
-- **RAG (Retrieval Augmented Generation)** - Document-based responses
+- **Google Gemini 2.0 Flash** for intelligent responses
+- **LangGraph** for complex AI agent workflows
+- **ChromaDB** for vector embeddings and similarity search
+- **Sentence Transformers** for document embeddings
 
-### Data Storage
-- **FAISS Vector Store** - High-performance vector similarity search
-- **In-Memory Conversation Cache** - Fast conversation context storage
-- **File-based Document Storage** - PDF and text document management
+### Infrastructure
+- **SQLite/PostgreSQL** for reliable data storage
+- **ChromaDB** for vector operations
+- **File System** for document storage with organization isolation
+- **RESTful APIs** with OpenAPI documentation
 
-### Performance & Infrastructure
-- **Asyncio** - Asynchronous Python programming
-- **ThreadPoolExecutor** - Parallel task execution
-- **Singleton Pattern** - Optimized agent initialization
-- **Uvicorn** - ASGI server for FastAPI
+## Deployment Architecture
 
-## Component Architecture
+### Development
+- **Frontend**: Vite dev server (http://localhost:5173)
+- **Backend**: Uvicorn ASGI server (http://localhost:8001)
+- **Database**: SQLite for rapid development
+- **Vector Store**: Local ChromaDB instance
 
-### 1. Query Processing Flow
+### Production (Recommended)
+- **Frontend**: Static files served via CDN (Vercel, Netlify)
+- **Backend**: Containerized FastAPI with gunicorn
+- **Database**: PostgreSQL with connection pooling
+- **Vector Store**: ChromaDB cluster or cloud service
+- **Load Balancer**: nginx for SSL termination and routing
 
-```
-User Query → Query Classifier → Router → [Retrieval|Tools|Direct] → Response Generator
-                    ↓
-              Conversation Memory
-```
+## API Endpoints
 
-#### Query Classification
-- **Rule-based**: Fast keyword matching
-- **Context-aware**: Uses conversation history
-- **Types**: retrieval, tool_use, direct
+### Authentication
+- `POST /auth/login` - User authentication with org context
+- `POST /auth/register/{org_id}` - Register user within organization
+- `GET /auth/profile` - Get current user profile
+- `PUT /auth/password` - Update user password
 
-#### Query Routing
-- **Retrieval Path**: Document search + RAG
-- **Tool Path**: Calculator, DateTime, Web Search
-- **Direct Path**: General knowledge responses
+### Organizations
+- `POST /organizations/register` - Create new organization with admin
+- `GET /organizations/{org_id}` - Get organization details
+- `PUT /organizations/{org_id}` - Update organization settings
+- `GET /organizations/{org_id}/stats` - Organization analytics
 
-### 2. Memory Management
+### Documents
+- `POST /documents/upload` - Upload document to org vector store
+- `GET /documents` - List organization documents
+- `DELETE /documents/{doc_id}` - Remove document from org
+- `GET /documents/{doc_id}/status` - Check processing status
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Conversation Memory                      │
-├─────────────────────────────────────────────────────────────┤
-│ conversation_id → [                                         │
-│   {                                                         │
-│     "question": "user query",                               │
-│     "answer": "ai response (800 chars)",                    │
-│     "query_type": "retrieval|tool_use|direct",              │
-│     "timestamp": 1672531200.0                               │
-│   }                                                         │
-│ ]                                                           │
-└─────────────────────────────────────────────────────────────┘
-```
+### AI Query
+- `POST /query/ask` - Process query with RAG pipeline
+- `POST /query/stream` - Streaming query responses
+- `GET /query/history` - User query history
+- `POST /query/feedback` - Submit response feedback
 
-### 3. Vector Store Architecture
+## Security Considerations
 
-```
-Documents → Text Chunking → Embeddings → FAISS Index → Similarity Search
-     ↓             ↓            ↓           ↓              ↓
-   PDF/TXT    512-char     all-MiniLM    Vector DB    Top-K Results
-            chunks        L6-v2
-```
+### Data Protection
+- **Encryption at Rest**: Sensitive data encrypted in database
+- **TLS in Transit**: All API communications over HTTPS
+- **Input Validation**: Comprehensive validation using Pydantic
+- **SQL Injection Protection**: Parameterized queries via SQLAlchemy
 
-### 4. Tool Registry
+### Access Control
+- **JWT Validation**: Every protected endpoint validates tokens
+- **Organization Isolation**: Strict org_id filtering on all data operations
+- **Role Enforcement**: Admin/employee permissions properly enforced
+- **Rate Limiting**: API rate limits to prevent abuse
 
-```
-┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
-│   Calculator    │  │    DateTime     │  │   Web Search    │
-├─────────────────┤  ├─────────────────┤  ├─────────────────┤
-│ • Math exprs    │  │ • Current date  │  │ • Live data     │
-│ • Percentages   │  │ • Time info     │  │ • News/weather  │
-│ • Arithmetic    │  │ • Timezone      │  │ • Current info  │
-└─────────────────┘  └─────────────────┘  └─────────────────┘
-```
+### Compliance
+- **Data Retention**: Configurable retention policies per organization
+- **Audit Logging**: Comprehensive logging of user actions
+- **Privacy Controls**: User data deletion and export capabilities
+- **GDPR Ready**: Architecture supports compliance requirements
 
 ## Performance Optimizations
 
-### 1. Singleton Pattern
-- **Agent Instance**: Single initialization across requests
-- **Component Caching**: Vector store and tools cached
-- **Memory Efficiency**: Reduced object creation overhead
+### Database
+- **Connection Pooling**: Efficient database connections
+- **Query Optimization**: Indexed foreign keys and common queries
+- **Lazy Loading**: Efficient relationship loading strategies
 
-### 2. Async Processing
-- **Non-blocking I/O**: All database and API calls async
-- **Concurrent Execution**: Parallel tool execution
-- **Thread Pool**: CPU-intensive tasks in background threads
+### Vector Operations
+- **Batch Processing**: Bulk embedding operations
+- **Caching**: Frequently accessed embeddings cached
+- **Parallel Processing**: Concurrent document processing
 
-### 3. Smart Caching
-- **Conversation Memory**: In-memory conversation storage
-- **Component Reuse**: Singleton pattern for expensive objects
-- **Vector Cache**: FAISS index cached in memory
+### API Performance
+- **Async Operations**: Non-blocking I/O throughout
+- **Response Caching**: Cache static and computed data
+- **Compression**: Gzip compression for API responses
 
-### 4. Query Optimization
-- **Fast Classification**: Rule-based instead of LLM-based
-- **Reduced Retrieval**: Top-3 documents instead of top-10
-- **Quick Analysis**: Truncated content processing
+## Monitoring & Observability
 
-## API Architecture
+### Application Metrics
+- **Response Times**: API endpoint performance tracking
+- **Error Rates**: Exception monitoring and alerting
+- **User Analytics**: Query patterns and usage statistics
 
-### RESTful Design
-```
-GET  /                    # Health check
-POST /query               # Main query processing
-GET  /health              # Detailed health status
-GET  /memory/stats        # Memory statistics
-DELETE /memory/cache      # Clear conversation cache
-POST /upload-document     # Document upload
-GET  /vector-store/stats  # Vector store statistics
-GET  /tools               # Available tools
-POST /tools/{tool}/{method} # Direct tool execution
-```
+### Infrastructure Metrics
+- **Database Performance**: Query execution times and connections
+- **Vector Store Health**: Embedding operations and search latency
+- **Resource Utilization**: CPU, memory, and disk usage
 
-### Response Format
-```json
-{
-  "answer": "string",
-  "steps": [...],
-  "conversation_id": "string", 
-  "metadata": {
-    "query_type": "string",
-    "total_processing_time_ms": "number",
-    "documents_used": "number",
-    "model_used": "string"
-  }
-}
-```
-
-## Security & Deployment
-
-### Environment Variables
-```bash
-GOOGLE_API_KEY=your_gemini_api_key
-SERPAPI_API_KEY=your_search_api_key (optional)
-WEATHERAPI_KEY=your_weather_api_key (optional)
-```
-
-### CORS Configuration
-- **Development**: Permissive CORS for local development
-- **Production**: Restricted origins for security
-
-### API Rate Limiting
-- **Google Gemini**: Respects API quotas and rate limits
-- **Error Handling**: Graceful fallbacks for rate limit errors
-- **Retry Logic**: Intelligent retry with exponential backoff
-
-## Monitoring & Analytics
-
-### Performance Metrics
-- **Response Time**: Per query and per component
-- **Memory Usage**: Conversation cache size
-- **Error Rates**: Failed requests and fallbacks
-- **Query Classification**: Distribution of query types
-
-### Real-time Dashboard
-- **Processing Steps**: Live query processing visualization
-- **Memory Stats**: Current cache usage
-- **Performance**: Response time trends
-- **Tool Usage**: Most used tools and success rates
-
-## Scalability Considerations
-
-### Horizontal Scaling
-- **Stateless Design**: No server-side session storage
-- **Memory Sharing**: Redis for distributed conversation memory
-- **Load Balancing**: Multiple FastAPI instances
-
-### Vertical Scaling
-- **Thread Pool**: Configurable worker threads
-- **Memory Limits**: Configurable conversation cache size
-- **Vector Store**: Scalable FAISS indices
-
-### Production Deployment
-- **Docker**: Containerized deployment
-- **Environment**: Production-ready configuration
-- **Monitoring**: Health checks and metrics
-- **Backup**: Vector store and conversation data backup
-
-## Development Workflow
-
-### Local Development
-```bash
-# Backend
-cd backend
-pip install -r requirements.txt
-uvicorn main:app --reload
-
-# Frontend  
-cd frontend
-npm install
-npm run dev
-```
-
-### Testing Strategy
-- **Unit Tests**: Individual component testing
-- **Integration Tests**: End-to-end API testing
-- **Performance Tests**: Response time and memory benchmarks
-- **Load Tests**: Concurrent request handling
-
-### Code Organization
-```
-backend/
-├── main.py                 # FastAPI application
-├── graphs/
-│   └── fast_agent_graph.py # Main agent logic
-├── tools/
-│   └── real_tools.py       # Tool implementations
-├── retriever/
-│   └── real_vector_store.py # Vector store management
-└── requirements.txt
-
-frontend/
-├── src/
-│   ├── components/         # React components
-│   ├── services/          # API client
-│   └── types/             # TypeScript definitions
-├── package.json
-└── vite.config.ts
-```
-
-This architecture ensures high performance, scalability, and maintainability while providing intelligent AI-powered query processing with memory and context management.
+This architecture provides a robust foundation for a scalable, secure, and maintainable multi-tenant AI knowledge management platform.

@@ -2,363 +2,619 @@
 
 ## Overview
 
-InsightFlow is a high-performance AI agent backend powered by Google Gemini, LangGraph, and real-time memory management. It provides intelligent query processing with automatic routing between document retrieval (RAG), tool usage, and direct responses.
+InsightFlow provides a comprehensive REST API for multi-tenant AI-powered knowledge management. The API is built with FastAPI and provides secure, organization-isolated access to document management, AI querying, and user administration.
 
 ## Base URL
+- **Development**: `http://localhost:8001`
+- **Production**: `https://api.insightflow.com`
+
+## Authentication
+
+### JWT Token Authentication
+All protected endpoints require a valid JWT token in the Authorization header:
 
 ```
-http://localhost:8000
+Authorization: Bearer <jwt_token>
 ```
+
+### Token Claims
+JWT tokens contain the following claims:
+- `user_id`: Unique user identifier
+- `org_id`: Organization identifier for multi-tenant isolation
+- `email`: User email address
+- `role`: User role (admin, employee)
+- `exp`: Token expiration timestamp
 
 ## API Endpoints
 
-### Health & Status
+### Authentication Endpoints
 
-#### GET `/`
-**Description**: Root endpoint - API status check
-**Response**: 
+#### POST /auth/login
+Authenticate user and return JWT token with organization context.
+
+**Request Body:**
 ```json
 {
-  "message": "InsightFlow Backend - Optimized"
+  "email": "user@company.com",
+  "password": "securepassword123",
+  "org_id": "optional-org-uuid"
 }
 ```
 
-#### GET `/health`
-**Description**: Health check endpoint
-**Response**:
+**Response (200 OK):**
 ```json
 {
-  "status": "healthy"
+  "success": true,
+  "token": {
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "token_type": "bearer",
+    "expires_in": 86400,
+    "user_id": "user-uuid",
+    "org_id": "org-uuid",
+    "role": "admin"
+  },
+  "user": {
+    "user_id": "user-uuid",
+    "email": "user@company.com",
+    "full_name": "John Doe",
+    "role": "admin",
+    "org_id": "org-uuid",
+    "org_name": "Company Name"
+  }
 }
 ```
 
-### Query Processing
-
-#### POST `/query`
-**Description**: Process user queries with intelligent routing and memory management
-**Content-Type**: `application/json`
-
-**Request Body**:
+**Error Response (401 Unauthorized):**
 ```json
 {
-  "question": "string (required) - User's question",
-  "conversation_id": "string (optional) - Conversation identifier for memory persistence"
+  "detail": "Invalid email or password"
 }
 ```
 
-**Response**:
+#### POST /auth/register/{org_id}
+Register a new user within an existing organization.
+
+**Path Parameters:**
+- `org_id` (string): UUID of the organization
+
+**Request Body:**
 ```json
 {
-  "answer": "string - AI-generated response",
-  "steps": [
+  "email": "newuser@company.com",
+  "full_name": "Jane Smith",
+  "password": "securepassword123",
+  "role": "employee"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "user_id": "new-user-uuid",
+  "message": "User registered successfully"
+}
+```
+
+#### GET /auth/profile
+Get current user profile information.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "user_id": "user-uuid",
+  "email": "user@company.com",
+  "full_name": "John Doe",
+  "role": "admin",
+  "org_id": "org-uuid",
+  "org_name": "Company Name",
+  "last_login": "2024-01-15T10:30:00Z",
+  "created_at": "2024-01-01T09:00:00Z"
+}
+```
+
+### Organization Endpoints
+
+#### POST /organizations/register
+Create a new organization with admin user. This is the primary onboarding endpoint.
+
+**Request Body:**
+```json
+{
+  "org_name": "My Company",
+  "domain": "mycompany.com",
+  "plan_type": "starter",
+  "admin_name": "John Admin",
+  "admin_email": "admin@mycompany.com",
+  "admin_password": "securepassword123"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "org_id": "new-org-uuid",
+  "message": "Organization 'My Company' created successfully",
+  "admin_user_id": "admin-user-uuid",
+  "next_steps": [
+    "Set up authentication for admin user",
+    "Upload first documents to knowledge base",
+    "Invite team members",
+    "Configure RAG settings"
+  ]
+}
+```
+
+**Error Response (400 Bad Request):**
+```json
+{
+  "detail": "Organization with name 'My Company' already exists"
+}
+```
+
+#### GET /organizations/{org_id}
+Get organization details and settings.
+
+**Path Parameters:**
+- `org_id` (string): UUID of the organization
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "org_id": "org-uuid",
+  "org_name": "My Company",
+  "domain": "mycompany.com",
+  "plan_type": "professional",
+  "is_active": true,
+  "created_at": "2024-01-01T09:00:00Z",
+  "updated_at": "2024-01-15T14:30:00Z"
+}
+```
+
+#### PUT /organizations/{org_id}
+Update organization settings (Admin only).
+
+**Path Parameters:**
+- `org_id` (string): UUID of the organization
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body:**
+```json
+{
+  "org_name": "Updated Company Name",
+  "domain": "newdomain.com",
+  "plan_type": "enterprise",
+  "settings": {
+    "similarity_threshold": 0.8,
+    "max_documents_per_query": 10,
+    "response_style": "detailed"
+  }
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Organization updated successfully"
+}
+```
+
+### Document Management Endpoints
+
+#### POST /documents/upload
+Upload a document to the organization's knowledge base.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: multipart/form-data
+```
+
+**Form Data:**
+```
+file: <binary_file_data>
+```
+
+**Supported File Types:**
+- PDF (.pdf)
+- Text files (.txt)
+- Word documents (.docx)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "document_id": "doc-uuid",
+  "filename": "document.pdf",
+  "file_type": "pdf",
+  "file_size": 1024768,
+  "chunks_created": 15,
+  "processing_status": "completed",
+  "message": "Document uploaded and processed successfully"
+}
+```
+
+**Error Response (400 Bad Request):**
+```json
+{
+  "detail": "Unsupported file type. Please upload PDF, TXT, or DOCX files."
+}
+```
+
+#### GET /documents
+List all documents in the organization.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Query Parameters:**
+- `skip` (int, optional): Number of documents to skip (default: 0)
+- `limit` (int, optional): Maximum number of documents to return (default: 50)
+- `status` (string, optional): Filter by processing status
+
+**Response (200 OK):**
+```json
+{
+  "documents": [
     {
-      "node": "string - Processing node name",
-      "status": "string - completed|error|in_progress", 
-      "timestamp": "number - Unix timestamp in milliseconds",
-      "data": {
-        "query_type": "string - retrieval|tool_use|direct",
-        "processing_time_ms": "number - Processing time",
-        "tool_selected": "string - Tool used (if applicable)",
-        "documents_found": "number - Documents retrieved (if applicable)",
-        "memory_context_used": "boolean - Whether conversation memory was used"
-      }
+      "document_id": "doc-uuid-1",
+      "filename": "company-handbook.pdf",
+      "original_filename": "Company Handbook 2024.pdf",
+      "file_type": "pdf",
+      "file_size": 2048576,
+      "processing_status": "completed",
+      "chunks_created": 25,
+      "uploaded_by": "user-uuid",
+      "upload_date": "2024-01-10T14:30:00Z",
+      "processed_date": "2024-01-10T14:32:15Z"
     }
   ],
-  "conversation_id": "string - Conversation identifier",
-  "metadata": {
-    "query_type": "string - Classification result",
-    "total_processing_time_ms": "number - Total processing time",
-    "documents_used": "number - Number of documents used",
-    "steps_executed": "number - Processing steps count",
-    "model_used": "string - AI model identifier",
-    "memory_enabled": "boolean - Memory system status",
-    "performance_optimized": "boolean - Performance optimization status"
-  }
+  "total": 1,
+  "skip": 0,
+  "limit": 50
 }
 ```
 
-**Example Request**:
-```bash
-curl -X POST "http://localhost:8000/query" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "question": "What are the tax deductions for freelancers in Canada?",
-    "conversation_id": "user_123_session"
-  }'
+#### DELETE /documents/{document_id}
+Delete a document from the organization's knowledge base.
+
+**Path Parameters:**
+- `document_id` (string): UUID of the document
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
 ```
 
-**Example Response**:
+**Response (200 OK):**
 ```json
 {
-  "answer": "As a freelancer in Canada, you can deduct various business expenses...",
-  "steps": [
+  "success": true,
+  "message": "Document deleted successfully"
+}
+```
+
+#### GET /documents/{document_id}/status
+Get processing status of a specific document.
+
+**Path Parameters:**
+- `document_id` (string): UUID of the document
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "document_id": "doc-uuid",
+  "filename": "document.pdf",
+  "processing_status": "processing",
+  "chunks_created": 10,
+  "total_chunks_expected": 15,
+  "processing_progress": 67,
+  "started_at": "2024-01-15T10:00:00Z",
+  "estimated_completion": "2024-01-15T10:05:00Z"
+}
+```
+
+### AI Query Endpoints
+
+#### POST /query/ask
+Process a query against the organization's knowledge base using RAG.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "query": "What is our company policy on remote work?",
+  "conversation_id": "optional-conversation-uuid",
+  "max_documents": 5,
+  "similarity_threshold": 0.7
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "response": "Based on the company handbook, our remote work policy allows employees to work from home up to 3 days per week with manager approval...",
+  "sources": [
     {
-      "node": "QueryClassifier", 
-      "status": "completed",
-      "timestamp": 1749466800000,
-      "data": {
-        "query_type": "retrieval",
-        "classification_reasoning": "Tax-related query requiring document search",
-        "processing_time_ms": 250
-      }
+      "document_id": "doc-uuid",
+      "filename": "company-handbook.pdf",
+      "chunk_text": "Remote work policy: Employees may work remotely...",
+      "relevance_score": 0.92,
+      "page_number": 15
     }
   ],
-  "conversation_id": "user_123_session",
-  "metadata": {
-    "query_type": "retrieval",
-    "total_processing_time_ms": 1200,
-    "documents_used": 3,
-    "steps_executed": 4,
-    "model_used": "gemini-2.0-flash-exp",
-    "memory_enabled": true,
-    "performance_optimized": true
-  }
+  "conversation_id": "conversation-uuid",
+  "query_id": "query-uuid",
+  "processing_time_ms": 1250
 }
 ```
 
-### Memory Management
+#### POST /query/stream
+Process a query with streaming response for real-time AI interaction.
 
-#### GET `/memory/stats`
-**Description**: Get memory and performance statistics
-**Response**:
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: application/json
+```
+
+**Request Body:**
 ```json
 {
-  "conversation_cache_size": "number - Cached conversations count",
-  "cached_conversations": ["array of conversation IDs"],
-  "memory_store_initialized": "boolean - Memory system status",
-  "performance_optimizations": ["array of optimization features"]
+  "query": "Explain our quarterly sales process",
+  "conversation_id": "conversation-uuid"
 }
 ```
 
-#### DELETE `/memory/cache`
-**Description**: Clear conversation cache
-**Response**:
+**Response (200 OK - Server-Sent Events):**
+```
+data: {"type": "start", "query_id": "query-uuid"}
+
+data: {"type": "thinking", "message": "Searching relevant documents..."}
+
+data: {"type": "sources", "documents": [{"filename": "sales-process.pdf", "relevance": 0.89}]}
+
+data: {"type": "content", "text": "Our quarterly"}
+
+data: {"type": "content", "text": " sales process consists"}
+
+data: {"type": "content", "text": " of four main phases..."}
+
+data: {"type": "complete", "total_time_ms": 2500}
+```
+
+#### GET /query/history
+Get user's query history within the organization.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Query Parameters:**
+- `limit` (int, optional): Maximum number of queries to return (default: 20)
+- `offset` (int, optional): Number of queries to skip (default: 0)
+
+**Response (200 OK):**
 ```json
 {
-  "status": "success",
-  "message": "Cleared X cached conversations"
+  "queries": [
+    {
+      "query_id": "query-uuid",
+      "query_text": "What is our company policy on remote work?",
+      "response_summary": "Remote work policy allows 3 days per week...",
+      "timestamp": "2024-01-15T14:30:00Z",
+      "processing_time_ms": 1250,
+      "sources_count": 3
+    }
+  ],
+  "total": 25,
+  "limit": 20,
+  "offset": 0
 }
 ```
 
-### Document Management
+### Health and System Endpoints
 
-#### POST `/upload-document`
-**Description**: Upload documents to the vector store
-**Content-Type**: `multipart/form-data`
+#### GET /health
+Check system health and component status.
 
-**Request**: 
-- `file`: Document file (PDF or TXT)
-
-**Response**:
+**Response (200 OK):**
 ```json
 {
-  "status": "success",
-  "message": "Document 'filename.pdf' uploaded successfully",
-  "filename": "string - Uploaded filename",
-  "file_size": "number - File size in bytes", 
-  "vector_store_stats": {
-    "total_documents": "number",
-    "total_chunks": "number"
-  }
-}
-```
-
-#### GET `/vector-store/stats`
-**Description**: Get vector store statistics
-**Response**:
-```json
-{
-  "total_documents": "number - Total documents in store",
-  "total_chunks": "number - Total document chunks",
-  "embedding_model": "string - Embedding model used"
-}
-```
-
-### Tools
-
-#### GET `/tools`
-**Description**: List available tools and their capabilities
-**Response**:
-```json
-{
-  "web_search": {
-    "description": "Search the web for current information",
-    "methods": ["search"],
-    "parameters": {"query": "string", "num_results": "integer"},
-    "requires_api": true
+  "status": "healthy",
+  "agents": {
+    "streaming_agent": true,
+    "fallback_agent": true
   },
-  "calculator": {
-    "description": "Perform mathematical calculations",
-    "methods": ["calculate"], 
-    "parameters": {"expression": "string"},
-    "requires_api": false
-  },
-  "datetime": {
-    "description": "Get current date and time information",
-    "methods": ["get_current_datetime", "get_today_date"],
-    "parameters": {"timezone_name": "string"},
-    "requires_api": false
-  }
+  "vector_store": true,
+  "database": true,
+  "timestamp": "2024-01-15T15:30:00Z"
 }
 ```
 
-#### POST `/tools/{tool_name}/{method}`
-**Description**: Execute a specific tool method
-**Content-Type**: `application/json`
+#### GET /docs
+Access interactive API documentation (Swagger UI).
 
-**Example**:
-```bash
-curl -X POST "http://localhost:8000/tools/datetime/get_today_date" \
-  -H "Content-Type: application/json" \
-  -d '{}'
-```
-
-## Query Types & Routing
-
-The system automatically classifies queries into three types:
-
-### 1. Retrieval (RAG)
-**Triggers**: Tax rules, legal requirements, business regulations, compliance questions
-**Process**: Document search → Context analysis → Response generation
-**Example**: "What are the GST requirements for freelancers?"
-
-### 2. Tool Use  
-**Triggers**: Calculations, current data, date/time queries
-**Process**: Tool selection → Tool execution → Response generation
-**Example**: "Calculate 15% of 5000" or "What's the date today?"
-
-### 3. Direct Response
-**Triggers**: General knowledge, definitions, casual conversation
-**Process**: Direct LLM response using general knowledge
-**Example**: "What is artificial intelligence?"
-
-## Memory & Context
-
-### Conversation Memory
-- **Automatic**: Conversations are automatically stored per `conversation_id`
-- **Context-Aware**: Subsequent queries use previous conversation context
-- **Persistent**: Memory persists across sessions
-- **Efficient**: Only essential context is stored for performance
-
-### Memory Features
-- **Context Continuity**: Understands references to previous topics
-- **Smart Classification**: Uses conversation history for better query routing
-- **Natural Flow**: Responses flow naturally without explicit context mentions
-
-## Performance Features
-
-### Optimization
-- **Singleton Agent**: Initialized once at startup for speed
-- **Async Processing**: All operations are asynchronous
-- **Thread Pool**: Parallel execution for CPU-intensive tasks
-- **Conversation Caching**: In-memory conversation storage
-- **Smart Fallbacks**: Robust error handling with intelligent fallbacks
-
-### Response Times
-- **Direct Queries**: ~1 second
-- **Tool Usage**: ~0.7 seconds  
-- **Document Retrieval**: ~1.5 seconds
-- **Overall**: 80-90% faster than previous versions
+#### GET /redoc
+Access alternative API documentation (ReDoc).
 
 ## Error Handling
 
-### Error Response Format
+### Standard Error Response Format
 ```json
 {
-  "detail": "Error message describing the issue"
+  "detail": "Error message describing what went wrong",
+  "error_code": "SPECIFIC_ERROR_CODE",
+  "timestamp": "2024-01-15T15:30:00Z"
 }
 ```
 
-### Common HTTP Status Codes
-- `200`: Success
-- `400`: Bad Request (invalid input)
-- `500`: Internal Server Error
-- `503`: Service Unavailable (agent not initialized)
+### HTTP Status Codes
+- `200 OK`: Request successful
+- `201 Created`: Resource created successfully
+- `400 Bad Request`: Invalid request parameters or body
+- `401 Unauthorized`: Invalid or missing authentication
+- `403 Forbidden`: Insufficient permissions
+- `404 Not Found`: Resource not found
+- `409 Conflict`: Resource already exists
+- `422 Unprocessable Entity`: Validation error
+- `429 Too Many Requests`: Rate limit exceeded
+- `500 Internal Server Error`: Server error
 
-## Rate Limiting & Quotas
+### Common Error Codes
+- `INVALID_TOKEN`: JWT token is invalid or expired
+- `ORGANIZATION_NOT_FOUND`: Specified organization does not exist
+- `INSUFFICIENT_PERMISSIONS`: User lacks required permissions
+- `DOCUMENT_PROCESSING_FAILED`: Document upload or processing failed
+- `QUERY_TIMEOUT`: AI query processing timed out
+- `RATE_LIMIT_EXCEEDED`: Too many requests from user/organization
 
-### Google Gemini API
-- **Model**: gemini-2.0-flash-exp
-- **Rate Limits**: Based on Google Cloud quotas
-- **Fallback**: Intelligent error handling when limits exceeded
+## Rate Limiting
 
-### Recommendations
-- **Production**: Implement your own rate limiting
-- **API Keys**: Use your own Google API key for production
-- **Monitoring**: Monitor API usage and costs
+### Limits by Endpoint Type
+- **Authentication**: 10 requests per minute per IP
+- **Document Upload**: 5 requests per minute per user
+- **AI Queries**: 50 requests per hour per user
+- **General API**: 1000 requests per hour per organization
 
-## Security Considerations
+### Rate Limit Headers
+```
+X-RateLimit-Limit: 50
+X-RateLimit-Remaining: 45
+X-RateLimit-Reset: 1642284600
+```
 
-### API Security
-- **CORS**: Configured for development (update for production)
-- **Input Validation**: All inputs are validated
-- **Error Handling**: Sensitive information is not exposed in errors
+## SDKs and Integration
 
-### Production Deployment
-1. **API Keys**: Store in secure environment variables
-2. **HTTPS**: Use HTTPS in production
-3. **Authentication**: Implement API authentication as needed
-4. **Rate Limiting**: Add production-grade rate limiting
+### cURL Examples
 
-## Integration Examples
+**Organization Registration:**
+```bash
+curl -X POST "http://localhost:8001/organizations/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "org_name": "My Company",
+    "domain": "mycompany.com",
+    "plan_type": "starter",
+    "admin_name": "John Admin",
+    "admin_email": "admin@mycompany.com",
+    "admin_password": "securepassword123"
+  }'
+```
 
-### Python
+**User Login:**
+```bash
+curl -X POST "http://localhost:8001/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "admin@mycompany.com",
+    "password": "securepassword123"
+  }'
+```
+
+**Document Upload:**
+```bash
+curl -X POST "http://localhost:8001/documents/upload" \
+  -H "Authorization: Bearer <jwt_token>" \
+  -F "file=@document.pdf"
+```
+
+**AI Query:**
+```bash
+curl -X POST "http://localhost:8001/query/ask" \
+  -H "Authorization: Bearer <jwt_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What are our sales targets for Q2?",
+    "max_documents": 5
+  }'
+```
+
+### Python SDK Example
 ```python
 import requests
 
-def query_agent(question, conversation_id="default"):
-    response = requests.post(
-        "http://localhost:8000/query",
-        json={"question": question, "conversation_id": conversation_id}
-    )
-    return response.json()
+class InsightFlowClient:
+    def __init__(self, base_url, token=None):
+        self.base_url = base_url
+        self.token = token
+        self.session = requests.Session()
+    
+    def login(self, email, password):
+        response = self.session.post(
+            f"{self.base_url}/auth/login",
+            json={"email": email, "password": password}
+        )
+        data = response.json()
+        self.token = data["token"]["access_token"]
+        self.session.headers.update({
+            "Authorization": f"Bearer {self.token}"
+        })
+        return data
+    
+    def query(self, text, conversation_id=None):
+        return self.session.post(
+            f"{self.base_url}/query/ask",
+            json={
+                "query": text,
+                "conversation_id": conversation_id
+            }
+        ).json()
 
-# Example usage
-result = query_agent("What are business expense deductions?")
-print(result["answer"])
+# Usage
+client = InsightFlowClient("http://localhost:8001")
+client.login("admin@company.com", "password123")
+result = client.query("What is our remote work policy?")
+print(result["response"])
 ```
 
-### JavaScript/Node.js
-```javascript
-async function queryAgent(question, conversationId = "default") {
-  const response = await fetch("http://localhost:8000/query", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({
-      question: question,
-      conversation_id: conversationId
-    })
-  });
-  return await response.json();
-}
+## Security Best Practices
 
-// Example usage
-const result = await queryAgent("Calculate 15% of 2500");
-console.log(result.answer);
-```
+### API Key Management
+- Store JWT tokens securely (e.g., httpOnly cookies, secure storage)
+- Implement token refresh before expiration
+- Clear tokens on logout or session end
 
-### cURL
-```bash
-# Simple query
-curl -X POST "http://localhost:8000/query" \
-  -H "Content-Type: application/json" \
-  -d '{"question": "What is GST in Canada?"}'
+### Request Security
+- Always use HTTPS in production
+- Validate and sanitize all input data
+- Implement proper CORS policies
+- Use rate limiting to prevent abuse
 
-# With conversation memory
-curl -X POST "http://localhost:8000/query" \
-  -H "Content-Type: application/json" \
-  -d '{"question": "What about the rate?", "conversation_id": "user_123"}'
-```
+### Data Protection
+- Encrypt sensitive data in transit and at rest
+- Implement proper access controls
+- Log security-relevant events
+- Regular security audits and updates
 
-## API Versioning
-
-**Current Version**: 2.0.0 (Optimized)
-**Base Path**: `/` (no versioning prefix currently)
-**Future**: Versioning will be added as `/v2/` when needed
-
-## Support & Resources
-
-- **GitHub Repository**: [AgentInsights](https://github.com/adarshp14/AgentInsights)
-- **Issues**: Report bugs and feature requests on GitHub
-- **Documentation**: This document and README.md
-- **Model**: Google Gemini 2.0 Flash Experimental
+This API provides a comprehensive foundation for building secure, scalable multi-tenant AI applications with InsightFlow.
