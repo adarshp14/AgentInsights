@@ -1,5 +1,17 @@
 import { useState, useEffect } from 'react'
-import { Brain, FileText, Clock, TrendingUp, Activity } from 'lucide-react'
+import { 
+  Brain, 
+  FileText, 
+  Clock, 
+  TrendingUp, 
+  Activity, 
+  Users, 
+  BarChart3, 
+  CheckCircle, 
+  AlertTriangle,
+  PieChart,
+  Database
+} from 'lucide-react'
 import QueryAnalysisCard from './QueryAnalysisCard'
 
 interface AgentStep {

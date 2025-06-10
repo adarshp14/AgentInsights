@@ -5,6 +5,7 @@ import { UserManagement } from './UserManagement';
 import { StreamingChatInterface } from './StreamingChatInterface';
 import { DocumentUpload } from './DocumentUpload';
 import { RealtimeDashboard } from './RealtimeDashboard';
+import AnalyticsDashboard from './AnalyticsDashboard';
 import {
   BarChart3,
   Users,
@@ -48,7 +49,7 @@ export const DashboardRouter: React.FC<DashboardRouterProps> = ({ currentUser, o
       case 'documents':
         return <DocumentManagement currentUser={currentUser} />;
       case 'analytics':
-        return <RealtimeDashboard />;
+        return <AnalyticsDashboard currentUser={currentUser} />;
       case 'settings':
         return <OrganizationSettings currentUser={currentUser} />;
       default:

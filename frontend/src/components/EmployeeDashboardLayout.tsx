@@ -286,14 +286,29 @@ export const EmployeeDashboardLayout: React.FC<EmployeeDashboardLayoutProps> = (
                 )}
               </button>
 
-              {/* Organization Info */}
-              <div className="hidden md:flex items-center space-x-3 px-3 py-2 bg-gray-50 rounded-lg">
-                <Building className="w-4 h-4 text-gray-500" />
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{currentUser.org_name}</p>
-                  <p className="text-xs text-gray-500">Team Member</p>
-                </div>
+              {/* Organization Switcher */}
+              <div className="hidden md:block">
+                <OrganizationSwitcher 
+                  appearance={{
+                    elements: {
+                      organizationSwitcherTrigger: "bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg px-3 py-2",
+                      organizationSwitcherTriggerIcon: "text-gray-500"
+                    }
+                  }}
+                  createOrganizationMode="navigation"
+                  organizationProfileMode="navigation"
+                />
               </div>
+
+              {/* User Button */}
+              <UserButton 
+                appearance={{
+                  elements: {
+                    avatarBox: "w-8 h-8",
+                    userButtonTrigger: "focus:shadow-none"
+                  }
+                }}
+              />
             </div>
           </div>
         </header>
