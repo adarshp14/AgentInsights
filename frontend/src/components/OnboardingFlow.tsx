@@ -22,6 +22,7 @@ type Step = 'welcome' | 'organization' | 'admin' | 'team' | 'complete';
 export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) => {
   const [currentStep, setCurrentStep] = useState<Step>('welcome');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [orgData, setOrgData] = useState({
     orgName: '',
     domain: '',
@@ -44,14 +45,16 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
   const handleBack = () => {
     if (currentStepIndex > 0) {
       setCurrentStep(steps[currentStepIndex - 1]);
+      setError(''); // Clear error when going back
     }
   };
 
   const handleCreateOrganization = async () => {
     setLoading(true);
+    setError('');
     try {
       // Call organization registration API
-      const response = await fetch('/api/organizations/register', {
+      const response = await fetch('http://localhost:8001/organizations/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -62,23 +65,53 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
           plan_type: orgData.planType,
           admin_name: orgData.adminName,
           admin_email: orgData.adminEmail,
+          admin_password: orgData.adminPassword,
         }),
       });
 
       const result = await response.json();
+      console.log('Organization creation response:', { status: response.status, result });
       
       if (response.ok && result.success) {
         setCurrentStep('complete');
-        // Auto-login the admin user
-        setTimeout(() => {
-          onComplete(result);
-        }, 2000);
+        
+        // Auto-login the admin user after organization creation
+        const loginResponse = await fetch('http://localhost:8001/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: orgData.adminEmail,
+            password: orgData.adminPassword,
+            org_id: result.org_id,
+          }),
+        });
+
+        const loginResult = await loginResponse.json();
+        
+        if (loginResponse.ok && loginResult.success) {
+          // Pass the complete login data to onComplete
+          setTimeout(() => {
+            onComplete({
+              user: loginResult.user,
+              token: loginResult.token
+            });
+          }, 2000);
+        } else {
+          throw new Error('Organization created but login failed');
+        }
       } else {
-        throw new Error(result.message || 'Failed to create organization');
+        // Handle specific error cases
+        let errorMessage = result.message || result.detail || 'Failed to create organization';
+        if (errorMessage.includes('already exists')) {
+          errorMessage = `Organization name or domain already exists. Please choose a different name.`;
+        }
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error('Error creating organization:', error);
-      alert('Failed to create organization. Please try again.');
+      setError(error.message);
     } finally {
       setLoading(false);
     }
@@ -302,6 +335,14 @@ export const OnboardingFlow: React.FC<OnboardingFlowProps> = ({ onComplete }) =>
       subtitle="Tell us about your team size"
     >
       <div className="space-y-6">
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-start space-x-3">
+              <div className="h-5 w-5 text-red-500 mt-0.5">⚠️</div>
+              <div className="text-sm text-red-700">{error}</div>
+            </div>
+          </div>
+        )}
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">

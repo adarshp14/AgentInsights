@@ -2,10 +2,9 @@ import React, { useState } from 'react';
 import { AuthLayout, Button, PasswordInput } from './AuthLayout';
 import { 
   Mail, 
-  ArrowRight, 
   AlertCircle,
-  Building,
   ArrowLeft,
+  ArrowRight,
   CheckCircle
 } from 'lucide-react';
 
@@ -14,7 +13,7 @@ interface LoginFlowProps {
   onShowOnboarding: () => void;
 }
 
-type LoginStep = 'email' | 'password' | 'organization';
+type LoginStep = 'email' | 'password';
 
 export const LoginFlow: React.FC<LoginFlowProps> = ({ onLogin, onShowOnboarding }) => {
   const [currentStep, setCurrentStep] = useState<LoginStep>('email');
@@ -22,62 +21,27 @@ export const LoginFlow: React.FC<LoginFlowProps> = ({ onLogin, onShowOnboarding 
   const [error, setError] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [organizations, setOrganizations] = useState<any[]>([]);
 
   const handleEmailSubmit = async () => {
     if (!email.trim()) return;
     
-    setLoading(true);
-    setError('');
-    
-    try {
-      // Check if user exists and get their organizations
-      // For now, we'll simulate this - in production, you'd call an API
-      // that returns organizations for this email
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Mock response - in production, call: /api/auth/check-email
-      const mockOrgs = [
-        { org_id: '123', org_name: 'Acme Corp', domain: 'acme.com', role: 'admin' },
-        { org_id: '456', org_name: 'TechStart Inc', domain: 'techstart.io', role: 'employee' }
-      ];
-      
-      if (mockOrgs.length === 0) {
-        // No organizations found - redirect to onboarding
-        setError('No account found with this email. Would you like to create one?');
-        return;
-      } else if (mockOrgs.length === 1) {
-        // Single organization - go directly to password
-        setOrganizations(mockOrgs);
-        setCurrentStep('password');
-      } else {
-        // Multiple organizations - show selection
-        setOrganizations(mockOrgs);
-        setCurrentStep('organization');
-      }
-    } catch (err) {
-      setError('Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    // Simply move to password step - our backend will handle user validation
+    setCurrentStep('password');
   };
 
-  const handleLogin = async (selectedOrgId?: string) => {
+  const handleLogin = async () => {
     setLoading(true);
     setError('');
     
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch('http://localhost:8001/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           email,
-          password,
-          org_id: selectedOrgId
+          password
         }),
       });
 
@@ -208,7 +172,7 @@ export const LoginFlow: React.FC<LoginFlowProps> = ({ onLogin, onShowOnboarding 
               Back
             </Button>
             <Button 
-              onClick={() => handleLogin(organizations[0]?.org_id)} 
+              onClick={handleLogin} 
               className="flex-1"
               loading={loading}
               disabled={!password.trim()}
@@ -227,57 +191,12 @@ export const LoginFlow: React.FC<LoginFlowProps> = ({ onLogin, onShowOnboarding 
     </AuthLayout>
   );
 
-  const renderOrganizationStep = () => (
-    <AuthLayout
-      title="Select Organization"
-      subtitle={`Choose which organization to sign in to`}
-    >
-      <div className="space-y-6">
-        <div className="space-y-3">
-          {organizations.map((org) => (
-            <button
-              key={org.org_id}
-              onClick={() => setCurrentStep('password')}
-              className="w-full p-4 border-2 border-gray-200 rounded-xl hover:border-indigo-300 hover:bg-indigo-50 transition-all text-left group"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-start space-x-3">
-                  <div className="p-2 bg-gray-100 group-hover:bg-indigo-100 rounded-lg transition-colors">
-                    <Building className="h-5 w-5 text-gray-600 group-hover:text-indigo-600" />
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-900">{org.org_name}</div>
-                    <div className="text-sm text-gray-500">{org.domain}</div>
-                    <div className="text-xs text-indigo-600 font-medium mt-1">
-                      {org.role === 'admin' ? '👑 Administrator' : '👤 Team Member'}
-                    </div>
-                  </div>
-                </div>
-                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-indigo-500 transition-colors" />
-              </div>
-            </button>
-          ))}
-        </div>
-
-        <Button 
-          onClick={() => setCurrentStep('email')} 
-          variant="outline" 
-          className="w-full"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Email
-        </Button>
-      </div>
-    </AuthLayout>
-  );
 
   switch (currentStep) {
     case 'email':
       return renderEmailStep();
     case 'password':
       return renderPasswordStep();
-    case 'organization':
-      return renderOrganizationStep();
     default:
       return renderEmailStep();
   }

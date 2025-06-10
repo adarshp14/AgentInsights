@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Brain, Search, Calculator, FileText, Clock, Target, TrendingUp, Activity } from 'lucide-react'
+import { Brain, FileText, Clock, TrendingUp, Activity } from 'lucide-react'
 import QueryAnalysisCard from './QueryAnalysisCard'
 
 interface AgentStep {
@@ -10,12 +10,12 @@ interface AgentStep {
 }
 
 interface RealtimeDashboardProps {
-  steps: AgentStep[]
-  isProcessing: boolean
-  currentQuery: string
+  steps?: AgentStep[]
+  isProcessing?: boolean
+  currentQuery?: string
 }
 
-const RealtimeDashboard = ({ steps, isProcessing, currentQuery }: RealtimeDashboardProps) => {
+const RealtimeDashboard = ({ steps = [], isProcessing = false, currentQuery = '' }: RealtimeDashboardProps) => {
   const [animatedSteps, setAnimatedSteps] = useState<AgentStep[]>([])
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [metrics, setMetrics] = useState({
@@ -74,48 +74,6 @@ const RealtimeDashboard = ({ steps, isProcessing, currentQuery }: RealtimeDashbo
     return steps.length > 0 ? 85 : 0
   }
 
-  const getStepIcon = (nodeName: string) => {
-    switch (nodeName) {
-      case 'QueryClassifier':
-        return <Brain className="w-4 h-4" />
-      case 'DocumentRetriever':
-        return <Search className="w-4 h-4" />
-      case 'ContextAnalyzer':
-        return <FileText className="w-4 h-4" />
-      case 'ToolUser':
-        return <Calculator className="w-4 h-4" />
-      case 'ResponseGenerator':
-        return <Target className="w-4 h-4" />
-      default:
-        return <Activity className="w-4 h-4" />
-    }
-  }
-
-  const getStepColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 border-green-500 text-green-700'
-      case 'error':
-        return 'bg-red-100 border-red-500 text-red-700'
-      case 'in_progress':
-        return 'bg-blue-100 border-blue-500 text-blue-700'
-      default:
-        return 'bg-gray-100 border-gray-300 text-gray-600'
-    }
-  }
-
-  const getQueryTypeColor = (type: string) => {
-    switch (type) {
-      case 'retrieval':
-        return 'bg-purple-100 text-purple-800 border-purple-200'
-      case 'tool_use':
-        return 'bg-orange-100 text-orange-800 border-orange-200'
-      case 'direct':
-        return 'bg-blue-100 text-blue-800 border-blue-200'
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
-  }
 
   const formatProcessingTime = (ms: number) => {
     if (ms < 1000) return `${Math.round(ms)}ms`
@@ -228,21 +186,9 @@ const RealtimeDashboard = ({ steps, isProcessing, currentQuery }: RealtimeDashbo
         </div>
       </div>
 
-      {/* Add some custom animations */}
-      <style jsx>{`
-        @keyframes slideInRight {
-          from {
-            opacity: 0;
-            transform: translateX(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-      `}</style>
     </div>
   )
 }
 
+export { RealtimeDashboard }
 export default RealtimeDashboard

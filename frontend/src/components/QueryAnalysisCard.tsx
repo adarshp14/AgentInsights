@@ -226,4 +226,5 @@ const QueryAnalysisCard = ({ step, index }: QueryAnalysisCardProps) => {
   )
 }
 
+export { QueryAnalysisCard }
 export default QueryAnalysisCard

@@ -37,15 +37,15 @@ class OrganizationService:
                 }
             
             # Check if domain is already taken (if provided)
-            if org_data.domain:
+            if org_data.domain and org_data.domain.strip():
                 existing_domain = self.db.query(Organization).filter(
-                    Organization.domain == org_data.domain
+                    Organization.domain == org_data.domain.strip()
                 ).first()
                 
                 if existing_domain:
                     return {
                         "success": False,
-                        "message": f"Domain '{org_data.domain}' is already taken"
+                        "message": f"Domain '{org_data.domain.strip()}' is already taken"
                     }
             
             # Check if admin email already exists
@@ -60,9 +60,12 @@ class OrganizationService:
                 }
             
             # Create organization
+            # Convert empty domain string to None for proper NULL handling
+            domain_value = org_data.domain if org_data.domain and org_data.domain.strip() else None
+            
             org = Organization(
                 org_name=org_data.org_name,
-                domain=org_data.domain,
+                domain=domain_value,
                 plan_type=org_data.plan_type,
                 settings={
                     "similarity_threshold": 0.7,

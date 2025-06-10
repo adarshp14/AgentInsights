@@ -1,209 +1,311 @@
-import { useState, useRef } from 'react'
-import { Upload, File, CheckCircle, AlertCircle, X } from 'lucide-react'
+import React, { useState } from 'react';
+import { Upload, FileText, CheckCircle, AlertCircle, X, File } from 'lucide-react';
+
+interface UploadedDocument {
+  document_id: string;
+  filename: string;
+  file_type: string;
+  file_size: number;
+  chunks_created: number;
+  status: 'success' | 'error';
+  error?: string;
+}
 
 interface DocumentUploadProps {
-  onUploadSuccess?: (filename: string) => void
-  onClose?: () => void
+  onUploadComplete?: (document: UploadedDocument) => void;
 }
 
-const DocumentUpload = ({ onUploadSuccess, onClose }: DocumentUploadProps) => {
-  const [isDragging, setIsDragging] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
-  const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle')
-  const [uploadMessage, setUploadMessage] = useState('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
+export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onUploadComplete }) => {
+  const [dragActive, setDragActive] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState<string[]>([]);
+  const [uploadResults, setUploadResults] = useState<UploadedDocument[]>([]);
+  const [showResults, setShowResults] = useState(false);
 
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(true)
-  }
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(true);
+  };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
-  }
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+  };
 
   const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    handleFileSelection(files);
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      handleFileSelection(files);
+    }
+  };
+
+  const handleFileSelection = (files: File[]) => {
+    const validFiles = files.filter(file => {
+      const allowedTypes = ['application/pdf', 'text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      const allowedExtensions = ['.pdf', '.txt', '.docx'];
+      
+      return allowedTypes.includes(file.type) || 
+             allowedExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+    });
+
+    setSelectedFiles(prev => [...prev, ...validFiles]);
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadFile = async (file: File): Promise<UploadedDocument> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch('/api/documents/upload', {
+      method: 'POST',
+      body: formData
+    });
+
+    const result = await response.json();
     
-    const files = Array.from(e.dataTransfer.files)
-    if (files.length > 0) {
-      handleFileUpload(files[0])
-    }
-  }
+    return {
+      document_id: result.document_id || '',
+      filename: result.filename,
+      file_type: result.file_type,
+      file_size: result.file_size,
+      chunks_created: result.chunks_created || 0,
+      status: result.status,
+      error: result.error
+    };
+  };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (files && files.length > 0) {
-      handleFileUpload(files[0])
-    }
-  }
+  const handleUploadAll = async () => {
+    if (selectedFiles.length === 0) return;
 
-  const handleFileUpload = async (file: File) => {
-    if (!file) return
+    setUploading(selectedFiles.map(f => f.name));
+    setUploadResults([]);
+    setShowResults(true);
 
-    // Validate file type
-    const allowedTypes = ['application/pdf', 'text/plain', 'text/markdown']
-    if (!allowedTypes.includes(file.type) && !file.name.toLowerCase().endsWith('.md')) {
-      setUploadStatus('error')
-      setUploadMessage('Please upload a PDF or TXT file')
-      return
-    }
+    const results: UploadedDocument[] = [];
 
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      setUploadStatus('error')
-      setUploadMessage('File size must be less than 10MB')
-      return
-    }
-
-    setIsUploading(true)
-    setUploadStatus('idle')
-
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-
-      const response = await fetch('http://localhost:8000/upload-document', {
-        method: 'POST',
-        body: formData
-      })
-
-      if (response.ok) {
-        const result = await response.json()
-        setUploadStatus('success')
-        setUploadMessage(`Successfully uploaded "${file.name}"`)
-        onUploadSuccess?.(file.name)
-      } else {
-        const error = await response.json()
-        setUploadStatus('error')
-        setUploadMessage(error.detail || 'Upload failed')
+    for (const file of selectedFiles) {
+      try {
+        const result = await uploadFile(file);
+        results.push(result);
+        setUploadResults([...results]);
+        
+        if (result.status === 'success' && onUploadComplete) {
+          onUploadComplete(result);
+        }
+      } catch (error) {
+        results.push({
+          document_id: '',
+          filename: file.name,
+          file_type: file.name.split('.').pop() || '',
+          file_size: file.size,
+          chunks_created: 0,
+          status: 'error',
+          error: error instanceof Error ? error.message : 'Upload failed'
+        });
+        setUploadResults([...results]);
       }
-    } catch (error) {
-      setUploadStatus('error')
-      setUploadMessage('Network error. Please try again.')
-    } finally {
-      setIsUploading(false)
+      
+      setUploading(prev => prev.filter(name => name !== file.name));
     }
-  }
 
-  const handleBrowseClick = () => {
-    fileInputRef.current?.click()
-  }
+    setSelectedFiles([]);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const getFileIcon = (filename: string) => {
+    const extension = filename.split('.').pop()?.toLowerCase();
+    switch (extension) {
+      case 'pdf':
+        return <File className="w-5 h-5 text-red-500" />;
+      case 'docx':
+        return <File className="w-5 h-5 text-blue-500" />;
+      case 'txt':
+        return <FileText className="w-5 h-5 text-gray-500" />;
+      default:
+        return <File className="w-5 h-5 text-gray-400" />;
+    }
+  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full m-4">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Upload Document</h2>
-          {onClose && (
+    <div className="w-full max-w-4xl mx-auto space-y-6">
+      <div
+        className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+          dragActive
+            ? 'border-blue-500 bg-blue-50'
+            : 'border-gray-300 hover:border-gray-400'
+        }`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">
+          Upload Documents
+        </h3>
+        <p className="text-gray-600 mb-4">
+          Drag and drop your files here, or click to browse
+        </p>
+        
+        <input
+          type="file"
+          multiple
+          accept=".pdf,.txt,.docx"
+          onChange={handleFileInput}
+          className="hidden"
+          id="file-upload"
+        />
+        
+        <label
+          htmlFor="file-upload"
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 cursor-pointer"
+        >
+          Choose Files
+        </label>
+        
+        <p className="text-xs text-gray-500 mt-2">
+          Supported formats: PDF, TXT, DOCX (Max 10MB each)
+        </p>
+      </div>
+
+      {selectedFiles.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-lg font-medium text-gray-900">
+              Selected Files ({selectedFiles.length})
+            </h4>
             <button
-              onClick={onClose}
+              onClick={handleUploadAll}
+              disabled={uploading.length > 0}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {uploading.length > 0 ? 'Uploading...' : 'Upload All'}
+            </button>
+          </div>
+          
+          <div className="space-y-2">
+            {selectedFiles.map((file, index) => (
+              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  {getFileIcon(file.name)}
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{file.name}</p>
+                    <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  {uploading.includes(file.name) ? (
+                    <div className="flex items-center space-x-2">
+                      <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-sm text-blue-600">Uploading...</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => removeFile(index)}
+                      className="p-1 text-gray-400 hover:text-red-500"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {showResults && uploadResults.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-lg font-medium text-gray-900">Upload Results</h4>
+            <button
+              onClick={() => {
+                setShowResults(false);
+                setUploadResults([]);
+              }}
               className="text-gray-400 hover:text-gray-600"
             >
-              <X size={20} />
+              <X className="w-5 h-5" />
             </button>
-          )}
-        </div>
-
-        <div className="p-6">
-          <div
-            className={`
-              border-2 border-dashed rounded-lg p-8 text-center transition-colors
-              ${isDragging 
-                ? 'border-primary-500 bg-primary-50' 
-                : 'border-gray-300 hover:border-gray-400'
-              }
-            `}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <div className="flex flex-col items-center">
-              {isUploading ? (
-                <>
-                  <div className="w-12 h-12 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mb-4"></div>
-                  <p className="text-gray-600">Uploading document...</p>
-                </>
-              ) : (
-                <>
-                  <Upload className="w-12 h-12 text-gray-400 mb-4" />
-                  <p className="text-lg font-medium text-gray-900 mb-2">
-                    Drop your document here
-                  </p>
-                  <p className="text-gray-600 mb-4">
-                    or{' '}
-                    <button
-                      onClick={handleBrowseClick}
-                      className="text-primary-600 hover:text-primary-700 font-medium"
-                    >
-                      browse files
-                    </button>
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Supports PDF and TXT files (max 10MB)
-                  </p>
-                </>
-              )}
-            </div>
           </div>
-
-          {uploadStatus !== 'idle' && (
-            <div
-              className={`
-                mt-4 p-4 rounded-lg flex items-start space-x-3
-                ${uploadStatus === 'success' 
-                  ? 'bg-green-50 border border-green-200' 
-                  : 'bg-red-50 border border-red-200'
-                }
-              `}
-            >
-              {uploadStatus === 'success' ? (
-                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-              ) : (
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              )}
-              <div>
-                <p
-                  className={`
-                    text-sm font-medium
-                    ${uploadStatus === 'success' ? 'text-green-800' : 'text-red-800'}
-                  `}
-                >
-                  {uploadStatus === 'success' ? 'Upload Successful' : 'Upload Failed'}
-                </p>
-                <p
-                  className={`
-                    text-sm
-                    ${uploadStatus === 'success' ? 'text-green-700' : 'text-red-700'}
-                  `}
-                >
-                  {uploadMessage}
-                </p>
+          
+          <div className="space-y-3">
+            {uploadResults.map((result, index) => (
+              <div
+                key={index}
+                className={`p-4 rounded-lg border ${
+                  result.status === 'success'
+                    ? 'bg-green-50 border-green-200'
+                    : 'bg-red-50 border-red-200'
+                }`}
+              >
+                <div className="flex items-start space-x-3">
+                  {result.status === 'success' ? (
+                    <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
+                  )}
+                  
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-gray-900">
+                        {result.filename}
+                      </p>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        result.status === 'success'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {result.status}
+                      </span>
+                    </div>
+                    
+                    {result.status === 'success' ? (
+                      <div className="text-sm text-gray-600 mt-1">
+                        <p>Document ID: {result.document_id}</p>
+                        <p>Chunks created: {result.chunks_created}</p>
+                        <p>Size: {formatFileSize(result.file_size)}</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-red-600 mt-1">
+                        Error: {result.error}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.txt,.md"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
-        </div>
-
-        {uploadStatus === 'success' && (
-          <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
-            <button onClick={onClose} className="btn-primary">
-              Done
-            </button>
+            ))}
           </div>
-        )}
-      </div>
+          
+          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>Next steps:</strong> Your uploaded documents are now available for AI queries. 
+              The system will automatically search through them when relevant questions are asked.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
-  )
-}
-
-export default DocumentUpload
+  );
+};

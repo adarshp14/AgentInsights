@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, Loader2 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 
 interface AgentStep {
   node: string
@@ -74,16 +75,38 @@ const ChatInterface = ({
             }`}
           >
             <div
-              className={`max-w-3xl px-4 py-2 rounded-lg ${
+              className={`max-w-4xl px-4 py-3 rounded-lg ${
                 message.type === 'user'
                   ? 'bg-primary-600 text-white'
-                  : 'bg-white border border-gray-200'
+                  : 'bg-white border border-gray-200 shadow-sm'
               }`}
             >
-              <div className="prose max-w-none">
-                <p className="mb-1">{message.content}</p>
-              </div>
-              <div className="text-xs opacity-70 mt-1">
+              {message.type === 'user' ? (
+                <div className="text-white">
+                  <p className="mb-1">{message.content}</p>
+                </div>
+              ) : (
+                <div className="prose prose-sm max-w-none text-gray-800">
+                  <ReactMarkdown
+                    components={{
+                      h1: ({ children }) => <h1 className="text-lg font-bold mb-2 text-gray-900">{children}</h1>,
+                      h2: ({ children }) => <h2 className="text-base font-semibold mb-2 text-gray-900">{children}</h2>,
+                      h3: ({ children }) => <h3 className="text-sm font-semibold mb-1 text-gray-900">{children}</h3>,
+                      p: ({ children }) => <p className="mb-2 text-gray-700 leading-relaxed">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>,
+                      li: ({ children }) => <li className="text-gray-700">{children}</li>,
+                      strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
+                      em: ({ children }) => <em className="italic text-gray-700">{children}</em>,
+                      code: ({ children }) => <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono text-gray-800">{children}</code>,
+                      pre: ({ children }) => <pre className="bg-gray-100 p-3 rounded-lg overflow-x-auto mb-2">{children}</pre>,
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                </div>
+              )}
+              <div className={`text-xs mt-2 ${message.type === 'user' ? 'text-blue-100' : 'text-gray-400'}`}>
                 {formatTime(message.timestamp)}
               </div>
             </div>
