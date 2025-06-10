@@ -744,13 +744,107 @@ const OrganizationSettings: React.FC<{ currentUser: any }> = ({ currentUser }) =
   );
 };
 
-// Employee Components (Simplified)
-const DocumentBrowser: React.FC<{ currentUser: any }> = () => (
-  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-    <h3 className="text-lg font-semibold text-gray-900 mb-4">Knowledge Base</h3>
-    <p className="text-gray-600">Browse and search organizational documents...</p>
-  </div>
-);
+// Employee Components
+const DocumentBrowser: React.FC<{ currentUser: any }> = ({ currentUser }) => {
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return;
+
+        const response = await fetch('http://localhost:8001/documents/list', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const docs = result.documents || [];
+          
+          const transformedDocs = docs.map(doc => ({
+            doc_id: doc.document_id,
+            filename: doc.filename,
+            file_size: doc.file_size / (1024 * 1024),
+            upload_date: doc.upload_date,
+            status: doc.processing_status === 'completed' ? 'processed' : doc.processing_status,
+            chunks_count: doc.chunks_created || 0
+          }));
+
+          setDocuments(transformedDocs.filter(doc => doc.status === 'processed'));
+        }
+      } catch (error) {
+        console.error('Error fetching documents:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDocuments();
+  }, [currentUser.org_id]);
+
+  const filteredDocuments = documents.filter(doc =>
+    doc.filename.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Knowledge Base</h3>
+        
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search documents..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+
+        {filteredDocuments.length === 0 ? (
+          <div className="text-center py-12">
+            <FileText className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No documents found</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              {searchTerm ? 'Try adjusting your search terms.' : 'No documents have been uploaded yet.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredDocuments.map((doc) => (
+              <div key={doc.doc_id} className="p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
+                <div className="flex items-center space-x-3">
+                  <FileText className="w-8 h-8 text-blue-600" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{doc.filename}</p>
+                    <p className="text-xs text-gray-500">{(doc.file_size).toFixed(1)} MB • {doc.chunks_count} chunks</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const QueryHistory: React.FC<{ currentUser: any }> = () => (
   <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
