@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Upload, FileText, CheckCircle, AlertCircle, X, File } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, X, File as FileIcon } from 'lucide-react';
 
 interface UploadedDocument {
   document_id: string;
@@ -149,13 +149,13 @@ export const DocumentUpload: React.FC<DocumentUploadProps> = ({ onUploadComplete
     const extension = filename.split('.').pop()?.toLowerCase();
     switch (extension) {
       case 'pdf':
-        return <File className="w-5 h-5 text-red-500" />;
+        return <FileIcon className="w-5 h-5 text-red-500" />;
       case 'docx':
-        return <File className="w-5 h-5 text-blue-500" />;
+        return <FileIcon className="w-5 h-5 text-blue-500" />;
       case 'txt':
         return <FileText className="w-5 h-5 text-gray-500" />;
       default:
-        return <File className="w-5 h-5 text-gray-400" />;
+        return <FileIcon className="w-5 h-5 text-gray-400" />;
     }
   };
 
