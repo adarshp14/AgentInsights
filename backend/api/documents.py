@@ -41,7 +41,7 @@ async def upload_document(
     Requires authentication and admin role
     """
     # Check if user has admin permissions
-    if current_user.role != "admin":
+    if current_user["role"] != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admin users can upload documents"
@@ -67,7 +67,7 @@ async def upload_document(
         
         # Check if document already exists
         existing_doc = db.query(Document).filter(
-            Document.org_id == current_user.org_id,
+            Document.org_id == current_user["org_id"],
             Document.content_hash == content_hash
         ).first()
         
@@ -84,19 +84,19 @@ async def upload_document(
         
         # Create document record
         document = Document(
-            org_id=current_user.org_id,
+            org_id=current_user["org_id"],
             filename=safe_filename,
             original_filename=file.filename,
             file_type=file_extension,
             file_size=file_size,
-            file_path=f"uploads/{current_user.org_id}/{safe_filename}",
+            file_path=f"uploads/{current_user['org_id']}/{safe_filename}",
             processing_status="processing",
-            uploaded_by=current_user.user_id,
+            uploaded_by=current_user["user_id"],
             content_hash=content_hash,
             embedding_model="all-MiniLM-L6-v2",
             doc_metadata={
                 "uploaded_via": "admin_api",
-                "uploader_email": current_user.email
+                "uploader_email": current_user["email"]
             }
         )
         
@@ -151,7 +151,7 @@ async def upload_document(
                     "document_id": str(document.document_id),
                     "chunk_index": i,
                     "file_type": file_extension,
-                    "org_id": str(current_user.org_id)
+                    "org_id": str(current_user["org_id"])
                 }
             )
             for i, chunk in enumerate(chunks)
@@ -159,7 +159,7 @@ async def upload_document(
         
         # Add to vector store
         vector_result = vector_store.add_documents(
-            org_id=current_user.org_id,
+            org_id=current_user["org_id"],
             documents=langchain_docs,
             document_id=document.document_id
         )
@@ -181,7 +181,7 @@ async def upload_document(
             "file_size": file_size,
             "chunks_created": document.chunks_created,
             "processing_status": document.processing_status,
-            "org_id": str(current_user.org_id)
+            "org_id": str(current_user["org_id"])
         }
         
     except HTTPException:
@@ -221,7 +221,7 @@ async def list_documents(
         return {
             "documents": doc_list,
             "total": len(doc_list),
-            "org_id": str(current_user.org_id)
+            "org_id": str(current_user["org_id"])
         }
         
     except Exception as e:
@@ -239,7 +239,7 @@ async def delete_document(
 ):
     """Delete document from organization's knowledge base"""
     # Check admin permissions
-    if current_user.role != "admin":
+    if current_user["role"] != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only admin users can delete documents"
@@ -257,7 +257,7 @@ async def delete_document(
         # Find document
         document = db.query(Document).filter(
             Document.document_id == doc_uuid,
-            Document.org_id == current_user.org_id
+            Document.org_id == current_user["org_id"]
         ).first()
         
         if not document:
@@ -268,7 +268,7 @@ async def delete_document(
         
         # Delete from vector store
         vector_result = vector_store.delete_document(
-            org_id=current_user.org_id,
+            org_id=current_user["org_id"],
             document_id=doc_uuid
         )
         
@@ -301,20 +301,20 @@ async def get_document_stats(
     try:
         # Database stats
         total_docs = db.query(Document).filter(
-            Document.org_id == current_user.org_id
+            Document.org_id == current_user["org_id"]
         ).count()
         
         completed_docs = db.query(Document).filter(
-            Document.org_id == current_user.org_id,
+            Document.org_id == current_user["org_id"],
             Document.processing_status == "completed"
         ).count()
         
         total_size = db.query(db.func.sum(Document.file_size)).filter(
-            Document.org_id == current_user.org_id
+            Document.org_id == current_user["org_id"]
         ).scalar() or 0
         
         # Vector store stats
-        vector_stats = vector_store.get_org_stats(current_user.org_id)
+        vector_stats = vector_store.get_org_stats(current_user["org_id"])
         
         return {
             "total_documents": total_docs,
@@ -324,7 +324,7 @@ async def get_document_stats(
             "total_size_mb": round(total_size / (1024 * 1024), 2),
             "total_chunks": vector_stats.get("total_chunks", 0),
             "vector_store_collection": vector_stats.get("collection_name", ""),
-            "org_id": str(current_user.org_id)
+            "org_id": str(current_user["org_id"])
         }
         
     except Exception as e:
