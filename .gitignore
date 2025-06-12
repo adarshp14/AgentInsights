@@ -134,6 +134,7 @@ temp/
 test_*.py
 *_test.py
 test_*.txt
+!backend/tests/**
 
 # Documentation files (generated during development)
 CURRENT_SESSION_*.md
